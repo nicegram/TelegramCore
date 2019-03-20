@@ -1162,7 +1162,7 @@ public struct MacosLegacy {
                     if Int(flags) & Int(1 << 5) != 0 {photo!.serialize(buffer, true)}
                     if Int(flags) & Int(1 << 6) != 0 {status!.serialize(buffer, true)}
                     if Int(flags) & Int(1 << 14) != 0 {serializeInt32(botInfoVersion!, buffer: buffer, boxed: false)}
-                    if Int(flags) & Int(1 << 18) != 0 {serializeString(restrictionReason!, buffer: buffer, boxed: false)}
+                    // #FMOD (redundant?) if Int(flags) & Int(1 << 18) != 0 {serializeString(restrictionReason!, buffer: buffer, boxed: false)}
                     if Int(flags) & Int(1 << 19) != 0 {serializeString(botInlinePlaceholder!, buffer: buffer, boxed: false)}
                     break
     }

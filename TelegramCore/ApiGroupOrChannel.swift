@@ -77,12 +77,14 @@ func parseTelegramGroupOrChannel(chat: Api.Chat) -> Peer? {
                 channelFlags.insert(.isVerified)
             }
             
-            let restrictionInfo: PeerAccessRestrictionInfo?
+            let restrictionInfo: PeerAccessRestrictionInfo? = nil
+            /* #FMOD
             if let restrictionReason = restrictionReason {
                 restrictionInfo = PeerAccessRestrictionInfo(reason: restrictionReason)
             } else {
                 restrictionInfo = nil
             }
+            */
             
             return TelegramChannel(id: PeerId(namespace: Namespaces.Peer.CloudChannel, id: id), accessHash: accessHash, title: title, username: username, photo: imageRepresentationsForApiChatPhoto(photo), creationDate: date, version: version, participationStatus: participationStatus, info: info, flags: channelFlags, restrictionInfo: restrictionInfo, adminRights: adminRights.flatMap(TelegramChatAdminRights.init), bannedRights: bannedRights.flatMap(TelegramChatBannedRights.init), defaultBannedRights: defaultBannedRights.flatMap(TelegramChatBannedRights.init), peerGroupId: /*feed*/nil/*feedId.flatMap { PeerGroupId(rawValue: $0) }*/)
         case let .channelForbidden(flags, id, accessHash, title, untilDate):
