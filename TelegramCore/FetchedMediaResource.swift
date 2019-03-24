@@ -54,6 +54,14 @@ public struct MessageReference: PostboxCoding, Hashable, Equatable {
         }
     }
     
+    public init(peer: Peer, id: MessageId, timestamp: Int32, incoming: Bool, secret: Bool) {
+        if let inputPeer = PeerReference(peer) {
+            self.content = .message(peer: inputPeer, id: id, timestamp: timestamp, incoming: incoming, secret: secret)
+        } else {
+            self.content = .none
+        }
+    }
+    
     public init(decoder: PostboxDecoder) {
         self.content = decoder.decodeObjectForKey("c", decoder: { MessageReferenceContent(decoder: $0) }) as! MessageReferenceContent
     }
@@ -428,6 +436,7 @@ public enum MediaResourceReference: Equatable {
     case avatar(peer: PeerReference, resource: MediaResource)
     case messageAuthorAvatar(message: MessageReference, resource: MediaResource)
     case wallpaper(resource: MediaResource)
+    case stickerPackThumbnail(stickerPack: StickerPackReference, resource: MediaResource)
     
     public var resource: MediaResource {
         switch self {
@@ -440,6 +449,8 @@ public enum MediaResourceReference: Equatable {
             case let .messageAuthorAvatar(_, resource):
                 return resource
             case let .wallpaper(resource):
+                return resource
+            case let .stickerPackThumbnail(_, resource):
                 return resource
         }
     }
@@ -476,6 +487,12 @@ public enum MediaResourceReference: Equatable {
                 } else {
                     return false
                 }
+            case let .stickerPackThumbnail(lhsStickerPack, lhsResource):
+                if case let .stickerPackThumbnail(rhsStickerPack, rhsResource) = rhs, lhsStickerPack == rhsStickerPack, lhsResource.isEqual(to: rhsResource) {
+                    return true
+                } else {
+                    return false
+                }
         }
     }
 }
@@ -505,9 +522,18 @@ final class TelegramCloudMediaResourceFetchInfo: MediaResourceFetchInfo {
 }
 
 public func fetchedMediaResource(postbox: Postbox, reference: MediaResourceReference, range: (Range<Int>, MediaBoxFetchPriority)? = nil, statsCategory: MediaResourceStatsCategory = .generic, reportResultStatus: Bool = false, preferBackgroundReferenceRevalidation: Bool = false, continueInBackground: Bool = false) -> Signal<FetchResourceSourceType, FetchResourceError> {
-    if let (range, priority) = range {
-        return postbox.mediaBox.fetchedResourceData(reference.resource, in: range, priority: priority, parameters: MediaResourceFetchParameters(tag: TelegramMediaResourceFetchTag(statsCategory: statsCategory), info: TelegramCloudMediaResourceFetchInfo(reference: reference, preferBackgroundReferenceRevalidation: preferBackgroundReferenceRevalidation, continueInBackground: continueInBackground)))
-        |> map { _ in .local }
+    return fetchedMediaResource(postbox: postbox, reference: reference, ranges: range.flatMap({ [$0] }), statsCategory: statsCategory, reportResultStatus: reportResultStatus, preferBackgroundReferenceRevalidation: preferBackgroundReferenceRevalidation, continueInBackground: continueInBackground)
+}
+
+public func fetchedMediaResource(postbox: Postbox, reference: MediaResourceReference, ranges: [(Range<Int>, MediaBoxFetchPriority)]?, statsCategory: MediaResourceStatsCategory = .generic, reportResultStatus: Bool = false, preferBackgroundReferenceRevalidation: Bool = false, continueInBackground: Bool = false) -> Signal<FetchResourceSourceType, FetchResourceError> {
+    if let ranges = ranges {
+        let signals = ranges.map { (range, priority) -> Signal<Void, FetchResourceError> in
+            return postbox.mediaBox.fetchedResourceData(reference.resource, in: range, priority: priority, parameters: MediaResourceFetchParameters(tag: TelegramMediaResourceFetchTag(statsCategory: statsCategory), info: TelegramCloudMediaResourceFetchInfo(reference: reference, preferBackgroundReferenceRevalidation: preferBackgroundReferenceRevalidation, continueInBackground: continueInBackground)))
+        }
+        return combineLatest(signals)
+        |> ignoreValues
+        |> map { _ -> FetchResourceSourceType in .local }
+        |> then(.single(.local))
     } else {
         return postbox.mediaBox.fetchedResource(reference.resource, parameters: MediaResourceFetchParameters(tag: TelegramMediaResourceFetchTag(statsCategory: statsCategory), info: TelegramCloudMediaResourceFetchInfo(reference: reference, preferBackgroundReferenceRevalidation: preferBackgroundReferenceRevalidation, continueInBackground: continueInBackground)), implNext: reportResultStatus)
     }
@@ -579,13 +605,17 @@ private func findMediaResource(media: Media, resource: MediaResource) -> MediaRe
 
 private func findMediaResourceReference(media: Media, resource: MediaResource) -> Data? {
     if let foundResource = findMediaResource(media: media, resource: resource) {
-        if let foundResource = foundResource as? CloudFileMediaResource {
-            return foundResource.fileReference
-        } else if let foundResource = foundResource as? CloudDocumentMediaResource {
-            return foundResource.fileReference
-        } else {
-            return nil
-        }
+        return findResourceReference(in: foundResource, resource: resource)
+    } else {
+        return nil
+    }
+}
+
+private func findResourceReference(in foundResource: MediaResource, resource: MediaResource) -> Data? {
+    if let foundResource = foundResource as? CloudFileMediaResource {
+        return foundResource.fileReference
+    } else if let foundResource = foundResource as? CloudDocumentMediaResource {
+        return foundResource.fileReference
     } else {
         return nil
     }
@@ -1003,6 +1033,18 @@ func revalidateMediaResourceReference(postbox: Postbox, network: Network, revali
                             }
                         default:
                             break
+                    }
+                }
+                return .fail(.generic)
+            }
+        case let .stickerPackThumbnail(packReference, resource):
+            return revalidationContext.stickerPack(postbox: postbox, network: network, background: info.preferBackgroundReferenceRevalidation, stickerPack: packReference)
+            |> mapToSignal { result -> Signal<Data, RevalidateMediaReferenceError> in
+                if let thumbnail = result.0.thumbnail {
+                    if thumbnail.resource.id.isEqual(to: resource.id) {
+                        if let fileReference = findResourceReference(in: thumbnail.resource, resource: resource) {
+                            return .single(fileReference)
+                        }
                     }
                 }
                 return .fail(.generic)

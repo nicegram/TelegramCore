@@ -1,10 +1,28 @@
 import Foundation
-import Postbox
+#if os(macOS)
+import SwiftSignalKitMac
+import PostboxMac
+#else
 import SwiftSignalKit
+import Postbox
+#endif
 
 public enum NotificationTokenType {
     case aps(encrypt: Bool)
     case voip
+}
+
+public func unregisterNotificationToken(account: Account, token: Data, type: NotificationTokenType, otherAccountUserIds: [Int32]) -> Signal<Never, NoError> {
+    let mappedType: Int32
+    switch type {
+        case .aps:
+            mappedType = 1
+        case .voip:
+            mappedType = 9
+    }
+    return account.network.request(Api.functions.account.unregisterDevice(tokenType: mappedType, token: hexString(token), otherUids: otherAccountUserIds))
+    |> retryRequest
+    |> ignoreValues
 }
 
 public func registerNotificationToken(account: Account, token: Data, type: NotificationTokenType, sandbox: Bool, otherAccountUserIds: [Int32]) -> Signal<Never, NoError> {

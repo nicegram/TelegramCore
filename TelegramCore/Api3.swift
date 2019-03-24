@@ -2740,12 +2740,13 @@ extension Api {
                     })
                 }
             
-                static func getStatsURL(peer: Api.InputPeer, params: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.StatsURL>) {
+                static func getStatsURL(flags: Int32, peer: Api.InputPeer, params: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.StatsURL>) {
                     let buffer = Buffer()
-                    buffer.appendInt32(-338326349)
+                    buffer.appendInt32(-2127811866)
+                    serializeInt32(flags, buffer: buffer, boxed: false)
                     peer.serialize(buffer, true)
                     serializeString(params, buffer: buffer, boxed: false)
-                    return (FunctionDescription(name: "messages.getStatsURL", parameters: [("peer", peer), ("params", params)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.StatsURL? in
+                    return (FunctionDescription(name: "messages.getStatsURL", parameters: [("flags", flags), ("peer", peer), ("params", params)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.StatsURL? in
                         let reader = BufferReader(buffer)
                         var result: Api.StatsURL?
                         if let signature = reader.readInt32() {
@@ -2841,6 +2842,49 @@ extension Api {
                         var result: Api.ExportedChatInvite?
                         if let signature = reader.readInt32() {
                             result = Api.parse(reader, signature: signature) as? Api.ExportedChatInvite
+                        }
+                        return result
+                    })
+                }
+            
+                static func getEmojiKeywords(langCode: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.EmojiKeywordsDifference>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(899735650)
+                    serializeString(langCode, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "messages.getEmojiKeywords", parameters: [("langCode", langCode)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.EmojiKeywordsDifference? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.EmojiKeywordsDifference?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.EmojiKeywordsDifference
+                        }
+                        return result
+                    })
+                }
+            
+                static func getEmojiKeywordsDifference(langCode: String, fromVersion: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.EmojiKeywordsDifference>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(352892591)
+                    serializeString(langCode, buffer: buffer, boxed: false)
+                    serializeInt32(fromVersion, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "messages.getEmojiKeywordsDifference", parameters: [("langCode", langCode), ("fromVersion", fromVersion)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.EmojiKeywordsDifference? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.EmojiKeywordsDifference?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.EmojiKeywordsDifference
+                        }
+                        return result
+                    })
+                }
+            
+                static func getEmojiURL(langCode: String) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.EmojiURL>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-709817306)
+                    serializeString(langCode, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "messages.getEmojiURL", parameters: [("langCode", langCode)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.EmojiURL? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.EmojiURL?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.EmojiURL
                         }
                         return result
                     })
