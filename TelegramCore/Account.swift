@@ -341,8 +341,8 @@ public func accountWithId(accountManager: AccountManager, networkArguments: Netw
     return postbox
     |> mapToSignal { result -> Signal<AccountResult, NoError> in
         switch result {
-            case let .upgrading(progress):
-                return .single(.upgrading(progress))
+            case .upgrading:
+                return .complete()
             case let .postbox(postbox):
                 return accountManager.transaction { transaction -> (LocalizationSettings?, ProxySettings?) in
                     return (transaction.getSharedData(SharedDataKeys.localizationSettings) as? LocalizationSettings, transaction.getSharedData(SharedDataKeys.proxySettings) as? ProxySettings)
