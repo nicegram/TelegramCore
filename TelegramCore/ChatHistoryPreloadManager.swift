@@ -70,14 +70,19 @@ private final class HistoryPreloadEntry: Comparable {
             self.isStarted = true
             
             let hole = self.hole.hole
-            let signal: Signal<Void, NoError> = .complete() |> delay(0.3, queue: queue) |> then(download |> take(1) |> deliverOn(queue) |> mapToSignal { download -> Signal<Void, NoError> in
-                switch hole.hole {
-                    case let .peer(peerHole):
-                        return fetchMessageHistoryHole(accountPeerId: accountPeerId, source: .download(download), postbox: postbox, hole: peerHole, direction: hole.direction, tagMask: nil, limit: 60)
-                    case let .groupFeed(groupId, lowerIndex, upperIndex):
-                        return fetchGroupFeedHole(source: .download(download), accountPeerId: accountPeerId, postbox: postbox, groupId: groupId, minIndex: lowerIndex, maxIndex: upperIndex, direction: hole.direction, limit: 60)
+            let signal: Signal<Never, NoError> = .complete()
+            |> delay(0.3, queue: queue)
+            |> then(
+                download
+                |> take(1)
+                |> deliverOn(queue)
+                |> mapToSignal { download -> Signal<Never, NoError> in
+                    switch hole.hole {
+                        case let .peer(peerHole):
+                            return fetchMessageHistoryHole(accountPeerId: accountPeerId, source: .download(download), postbox: postbox, peerId: peerHole.peerId, namespace: peerHole.namespace, direction: hole.direction, space: .everywhere, limit: 60)
+                    }
                 }
-            })
+            )
             self.disposable.set(signal.start())
         }
     }
@@ -120,33 +125,7 @@ private final class HistoryPreloadViewContext {
 
 private enum ChatHistoryPreloadEntity: Hashable {
     case peer(PeerId)
-    case group(PeerGroupId)
-    
-    static func ==(lhs: ChatHistoryPreloadEntity, rhs: ChatHistoryPreloadEntity) -> Bool {
-        switch lhs {
-            case let .peer(id):
-                if case .peer(id) = rhs {
-                    return true
-                } else {
-                    return false
-                }
-            case let .group(id):
-                if case .group(id) = rhs {
-                    return true
-                } else {
-                    return false
-                }
-        }
-    }
-    
-    var hashValue: Int {
-        switch self {
-            case let .peer(id):
-                return id.hashValue
-            case let .group(id):
-                return id.hashValue
-        }
-    }
+    //case group(PeerGroupId)
 }
 
 private struct ChatHistoryPreloadIndex {
@@ -192,7 +171,7 @@ final class ChatHistoryPreloadManager {
     private var canPreloadHistoryDisposable: Disposable?
     private var canPreloadHistoryValue = false
     
-    private var automaticChatListDisposable: Disposable?
+    private let automaticChatListDisposable = MetaDisposable()
     
     private var views: [ChatHistoryPreloadEntity: HistoryPreloadViewContext] = [:]
     
@@ -210,54 +189,59 @@ final class ChatHistoryPreloadManager {
         self.accountPeerId = accountPeerId
         self.download.set(network.background())
         
-        self.automaticChatListDisposable = (postbox.tailChatListView(groupId: nil, count: 20, summaryComponents: ChatListEntrySummaryComponents()) |> deliverOnMainQueue).start(next: { [weak self] view in
-            if let strongSelf = self {
-                var indices: [(ChatHistoryPreloadIndex, Bool, Bool)] = []
-                for entry in view.0.entries {
-                    if case let .MessageEntry(index, _, readState, notificationSettings, _, _, _) = entry {
-                        var hasUnread = false
-                        if let readState = readState {
-                            hasUnread = readState.count != 0
-                        }
-                        var isMuted = false
-                        if let notificationSettings = notificationSettings as? TelegramPeerNotificationSettings {
-                            if case let .muted(until) = notificationSettings.muteState, until >= Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970) {
-                                isMuted = true
-                            }
-                        }
-                        indices.append((ChatHistoryPreloadIndex(index: index, entity: .peer(index.messageIndex.id.peerId)), hasUnread, isMuted))
-                    } else if case let .GroupReferenceEntry(groupId, index, _, _, counters) = entry {
-                        let hasUnread = counters.unreadCount != 0 || counters.unreadMutedCount != 0
-                        let isMuted = counters.unreadCount != 0
-                        indices.append((ChatHistoryPreloadIndex(index: index, entity: .group(groupId)), hasUnread, isMuted))
-                    }
-                }
-                
-                strongSelf.update(indices: indices)
-            }
-        })
-        
-        self.canPreloadHistoryDisposable = (networkState |> map { state -> Bool in
+        self.canPreloadHistoryDisposable = (networkState
+        |> map { state -> Bool in
             switch state {
                 case .online:
                     return true
                 default:
                     return false
+            }
+        }
+        |> distinctUntilChanged
+        |> deliverOn(self.queue)).start(next: { [weak self] value in
+            guard let strongSelf = self, strongSelf.canPreloadHistoryValue != value else {
+                return
+            }
+            strongSelf.canPreloadHistoryValue = value
+            if value {
+                for i in 0 ..< min(3, strongSelf.entries.count) {
+                    strongSelf.entries[i].startIfNeeded(postbox: strongSelf.postbox, accountPeerId: strongSelf.accountPeerId, download: strongSelf.download.get() |> take(1), queue: strongSelf.queue)
                 }
-            } |> distinctUntilChanged |> deliverOn(self.queue)).start(next: { [weak self] value in
-                if let strongSelf = self, strongSelf.canPreloadHistoryValue != value {
-                    strongSelf.canPreloadHistoryValue = value
-                    if value {
-                        for i in 0 ..< min(3, strongSelf.entries.count) {
-                            strongSelf.entries[i].startIfNeeded(postbox: strongSelf.postbox, accountPeerId: strongSelf.accountPeerId, download: strongSelf.download.get() |> take(1), queue: strongSelf.queue)
-                        }
-                    }
-                }
-            })
+            }
+        })
     }
     
     deinit {
         self.canPreloadHistoryDisposable?.dispose()
+    }
+    
+    func start() {
+        self.automaticChatListDisposable.set((postbox.tailChatListView(groupId: .root, count: 20, summaryComponents: ChatListEntrySummaryComponents())
+        |> delay(1.0, queue: .mainQueue())
+        |> deliverOnMainQueue).start(next: { [weak self] view in
+            guard let strongSelf = self else {
+                return
+            }
+            var indices: [(ChatHistoryPreloadIndex, Bool, Bool)] = []
+            for entry in view.0.entries {
+                if case let .MessageEntry(index, _, readState, notificationSettings, _, _, _, _) = entry {
+                    var hasUnread = false
+                    if let readState = readState {
+                        hasUnread = readState.count != 0
+                    }
+                    var isMuted = false
+                    if let notificationSettings = notificationSettings as? TelegramPeerNotificationSettings {
+                        if case let .muted(until) = notificationSettings.muteState, until >= Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970) {
+                            isMuted = true
+                        }
+                    }
+                    indices.append((ChatHistoryPreloadIndex(index: index, entity: .peer(index.messageIndex.id.peerId)), hasUnread, isMuted))
+                }
+            }
+            
+            strongSelf.update(indices: indices)
+        }))
     }
     
     private func update(indices: [(ChatHistoryPreloadIndex, Bool, Bool)]) {
@@ -295,8 +279,6 @@ final class ChatHistoryPreloadManager {
                     switch index.entity {
                         case let .peer(peerId):
                             key = .messageOfInterestHole(location: .peer(peerId), namespace: Namespaces.Message.Cloud, count: 60)
-                        case let .group(groupId):
-                            key = .messageOfInterestHole(location: .group(groupId), namespace: Namespaces.Message.Cloud, count: 60)
                     }
                     view.disposable.set((self.postbox.combinedView(keys: [key])
                     |> deliverOn(self.queue)).start(next: { [weak self] next in

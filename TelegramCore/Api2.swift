@@ -1,6 +1,6 @@
 extension Api {
 struct channels {
-    enum ChannelParticipants: TypeConstructorDescription {
+    indirect enum ChannelParticipants: TypeConstructorDescription {
         case channelParticipants(count: Int32, participants: [Api.ChannelParticipant], users: [Api.User])
         case channelParticipantsNotModified
     
@@ -66,7 +66,7 @@ struct channels {
         }
     
     }
-    enum ChannelParticipant: TypeConstructorDescription {
+    indirect enum ChannelParticipant: TypeConstructorDescription {
         case channelParticipant(participant: Api.ChannelParticipant, users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -112,7 +112,7 @@ struct channels {
         }
     
     }
-    enum AdminLogResults: TypeConstructorDescription {
+    indirect enum AdminLogResults: TypeConstructorDescription {
         case adminLogResults(events: [Api.ChannelAdminLogEvent], chats: [Api.Chat], users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -176,7 +176,7 @@ struct channels {
 }
 extension Api {
 struct payments {
-    enum ValidatedRequestedInfo: TypeConstructorDescription {
+    indirect enum ValidatedRequestedInfo: TypeConstructorDescription {
         case validatedRequestedInfo(flags: Int32, id: String?, shippingOptions: [Api.ShippingOption]?)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -224,7 +224,7 @@ struct payments {
         }
     
     }
-    enum PaymentResult: TypeConstructorDescription {
+    indirect enum PaymentResult: TypeConstructorDescription {
         case paymentResult(updates: Api.Updates)
         case paymentVerficationNeeded(url: String)
     
@@ -280,7 +280,7 @@ struct payments {
         }
     
     }
-    enum PaymentForm: TypeConstructorDescription {
+    indirect enum PaymentForm: TypeConstructorDescription {
         case paymentForm(flags: Int32, botId: Int32, invoice: Api.Invoice, providerId: Int32, url: String, nativeProvider: String?, nativeParams: Api.DataJSON?, savedInfo: Api.PaymentRequestedInfo?, savedCredentials: Api.PaymentSavedCredentials?, users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -364,7 +364,7 @@ struct payments {
         }
     
     }
-    enum PaymentReceipt: TypeConstructorDescription {
+    indirect enum PaymentReceipt: TypeConstructorDescription {
         case paymentReceipt(flags: Int32, date: Int32, botId: Int32, invoice: Api.Invoice, providerId: Int32, info: Api.PaymentRequestedInfo?, shipping: Api.ShippingOption?, currency: String, totalAmount: Int64, credentialsTitle: String, users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -450,7 +450,7 @@ struct payments {
         }
     
     }
-    enum SavedInfo: TypeConstructorDescription {
+    indirect enum SavedInfo: TypeConstructorDescription {
         case savedInfo(flags: Int32, savedInfo: Api.PaymentRequestedInfo?)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -494,7 +494,7 @@ struct payments {
 }
 extension Api {
 struct auth {
-    enum Authorization: TypeConstructorDescription {
+    indirect enum Authorization: TypeConstructorDescription {
         case authorization(flags: Int32, tmpSessions: Int32?, user: Api.User)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -538,7 +538,7 @@ struct auth {
         }
     
     }
-    enum PasswordRecovery: TypeConstructorDescription {
+    indirect enum PasswordRecovery: TypeConstructorDescription {
         case passwordRecovery(emailPattern: String)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -572,7 +572,7 @@ struct auth {
         }
     
     }
-    enum ExportedAuthorization: TypeConstructorDescription {
+    indirect enum ExportedAuthorization: TypeConstructorDescription {
         case exportedAuthorization(id: Int32, bytes: Buffer)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -610,7 +610,7 @@ struct auth {
         }
     
     }
-    enum CheckedPhone: TypeConstructorDescription {
+    indirect enum CheckedPhone: TypeConstructorDescription {
         case checkedPhone(phoneRegistered: Api.Bool)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -646,7 +646,7 @@ struct auth {
         }
     
     }
-    enum SentCode: TypeConstructorDescription {
+    indirect enum SentCode: TypeConstructorDescription {
         case sentCode(flags: Int32, type: Api.auth.SentCodeType, phoneCodeHash: String, nextType: Api.auth.CodeType?, timeout: Int32?, termsOfService: Api.help.TermsOfService?)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -706,7 +706,7 @@ struct auth {
         }
     
     }
-    enum CodeType: TypeConstructorDescription {
+    indirect enum CodeType: TypeConstructorDescription {
         case codeTypeSms
         case codeTypeCall
         case codeTypeFlashCall
@@ -756,7 +756,7 @@ struct auth {
         }
     
     }
-    enum SentCodeType: TypeConstructorDescription {
+    indirect enum SentCodeType: TypeConstructorDescription {
         case sentCodeTypeApp(length: Int32)
         case sentCodeTypeSms(length: Int32)
         case sentCodeTypeCall(length: Int32)
@@ -854,7 +854,7 @@ struct auth {
 }
 extension Api {
 struct contacts {
-    enum Blocked: TypeConstructorDescription {
+    indirect enum Blocked: TypeConstructorDescription {
         case blocked(blocked: [Api.ContactBlocked], users: [Api.User])
         case blockedSlice(count: Int32, blocked: [Api.ContactBlocked], users: [Api.User])
     
@@ -944,7 +944,7 @@ struct contacts {
         }
     
     }
-    enum Contacts: TypeConstructorDescription {
+    indirect enum Contacts: TypeConstructorDescription {
         case contactsNotModified
         case contacts(contacts: [Api.Contact], savedCount: Int32, users: [Api.User])
     
@@ -1010,7 +1010,7 @@ struct contacts {
         }
     
     }
-    enum ResolvedPeer: TypeConstructorDescription {
+    indirect enum ResolvedPeer: TypeConstructorDescription {
         case resolvedPeer(peer: Api.Peer, chats: [Api.Chat], users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -1066,7 +1066,7 @@ struct contacts {
         }
     
     }
-    enum Link: TypeConstructorDescription {
+    indirect enum Link: TypeConstructorDescription {
         case link(myLink: Api.ContactLink, foreignLink: Api.ContactLink, user: Api.User)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -1114,7 +1114,7 @@ struct contacts {
         }
     
     }
-    enum ImportedContacts: TypeConstructorDescription {
+    indirect enum ImportedContacts: TypeConstructorDescription {
         case importedContacts(imported: [Api.ImportedContact], popularInvites: [Api.PopularContact], retryContacts: [Int64], users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -1184,7 +1184,7 @@ struct contacts {
         }
     
     }
-    enum Found: TypeConstructorDescription {
+    indirect enum Found: TypeConstructorDescription {
         case found(myResults: [Api.Peer], results: [Api.Peer], chats: [Api.Chat], users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -1254,7 +1254,7 @@ struct contacts {
         }
     
     }
-    enum TopPeers: TypeConstructorDescription {
+    indirect enum TopPeers: TypeConstructorDescription {
         case topPeersNotModified
         case topPeers(categories: [Api.TopPeerCategoryPeers], chats: [Api.Chat], users: [Api.User])
         case topPeersDisabled
@@ -1342,7 +1342,7 @@ struct contacts {
 }
 extension Api {
 struct help {
-    enum AppUpdate: TypeConstructorDescription {
+    indirect enum AppUpdate: TypeConstructorDescription {
         case appUpdate(id: Int32, critical: Api.Bool, url: String, text: String)
         case noAppUpdate
     
@@ -1402,7 +1402,7 @@ struct help {
         }
     
     }
-    enum PassportConfig: TypeConstructorDescription {
+    indirect enum PassportConfig: TypeConstructorDescription {
         case passportConfigNotModified
         case passportConfig(hash: Int32, countriesLangs: Api.DataJSON)
     
@@ -1454,7 +1454,7 @@ struct help {
         }
     
     }
-    enum ProxyData: TypeConstructorDescription {
+    indirect enum ProxyData: TypeConstructorDescription {
         case proxyDataEmpty(expires: Int32)
         case proxyDataPromo(expires: Int32, peer: Api.Peer, chats: [Api.Chat], users: [Api.User])
     
@@ -1534,7 +1534,7 @@ struct help {
         }
     
     }
-    enum DeepLinkInfo: TypeConstructorDescription {
+    indirect enum DeepLinkInfo: TypeConstructorDescription {
         case deepLinkInfoEmpty
         case deepLinkInfo(flags: Int32, message: String, entities: [Api.MessageEntity]?)
     
@@ -1594,7 +1594,7 @@ struct help {
         }
     
     }
-    enum TermsOfService: TypeConstructorDescription {
+    indirect enum TermsOfService: TypeConstructorDescription {
         case termsOfService(flags: Int32, id: Api.DataJSON, text: String, entities: [Api.MessageEntity], minAgeConfirm: Int32?)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -1652,7 +1652,7 @@ struct help {
         }
     
     }
-    enum RecentMeUrls: TypeConstructorDescription {
+    indirect enum RecentMeUrls: TypeConstructorDescription {
         case recentMeUrls(urls: [Api.RecentMeUrl], chats: [Api.Chat], users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -1712,7 +1712,7 @@ struct help {
         }
     
     }
-    enum Support: TypeConstructorDescription {
+    indirect enum Support: TypeConstructorDescription {
         case support(phoneNumber: String, user: Api.User)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -1752,7 +1752,7 @@ struct help {
         }
     
     }
-    enum InviteText: TypeConstructorDescription {
+    indirect enum InviteText: TypeConstructorDescription {
         case inviteText(message: String)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -1786,7 +1786,7 @@ struct help {
         }
     
     }
-    enum TermsOfServiceUpdate: TypeConstructorDescription {
+    indirect enum TermsOfServiceUpdate: TypeConstructorDescription {
         case termsOfServiceUpdateEmpty(expires: Int32)
         case termsOfServiceUpdate(expires: Int32, termsOfService: Api.help.TermsOfService)
     
@@ -1850,7 +1850,7 @@ struct help {
 }
 extension Api {
 struct updates {
-    enum Difference: TypeConstructorDescription {
+    indirect enum Difference: TypeConstructorDescription {
         case differenceEmpty(date: Int32, seq: Int32)
         case difference(newMessages: [Api.Message], newEncryptedMessages: [Api.EncryptedMessage], otherUpdates: [Api.Update], chats: [Api.Chat], users: [Api.User], state: Api.updates.State)
         case differenceSlice(newMessages: [Api.Message], newEncryptedMessages: [Api.EncryptedMessage], otherUpdates: [Api.Update], chats: [Api.Chat], users: [Api.User], intermediateState: Api.updates.State)
@@ -2052,7 +2052,7 @@ struct updates {
         }
     
     }
-    enum State: TypeConstructorDescription {
+    indirect enum State: TypeConstructorDescription {
         case state(pts: Int32, qts: Int32, date: Int32, seq: Int32, unreadCount: Int32)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -2102,10 +2102,10 @@ struct updates {
         }
     
     }
-    enum ChannelDifference: TypeConstructorDescription {
+    indirect enum ChannelDifference: TypeConstructorDescription {
         case channelDifferenceEmpty(flags: Int32, pts: Int32, timeout: Int32?)
-        case channelDifferenceTooLong(flags: Int32, pts: Int32, timeout: Int32?, topMessage: Int32, readInboxMaxId: Int32, readOutboxMaxId: Int32, unreadCount: Int32, unreadMentionsCount: Int32, messages: [Api.Message], chats: [Api.Chat], users: [Api.User])
         case channelDifference(flags: Int32, pts: Int32, timeout: Int32?, newMessages: [Api.Message], otherUpdates: [Api.Update], chats: [Api.Chat], users: [Api.User])
+        case channelDifferenceTooLong(flags: Int32, timeout: Int32?, dialog: Api.Dialog, messages: [Api.Message], chats: [Api.Chat], users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
     switch self {
@@ -2116,34 +2116,6 @@ struct updates {
                     serializeInt32(flags, buffer: buffer, boxed: false)
                     serializeInt32(pts, buffer: buffer, boxed: false)
                     if Int(flags) & Int(1 << 1) != 0 {serializeInt32(timeout!, buffer: buffer, boxed: false)}
-                    break
-                case .channelDifferenceTooLong(let flags, let pts, let timeout, let topMessage, let readInboxMaxId, let readOutboxMaxId, let unreadCount, let unreadMentionsCount, let messages, let chats, let users):
-                    if boxed {
-                        buffer.appendInt32(1788705589)
-                    }
-                    serializeInt32(flags, buffer: buffer, boxed: false)
-                    serializeInt32(pts, buffer: buffer, boxed: false)
-                    if Int(flags) & Int(1 << 1) != 0 {serializeInt32(timeout!, buffer: buffer, boxed: false)}
-                    serializeInt32(topMessage, buffer: buffer, boxed: false)
-                    serializeInt32(readInboxMaxId, buffer: buffer, boxed: false)
-                    serializeInt32(readOutboxMaxId, buffer: buffer, boxed: false)
-                    serializeInt32(unreadCount, buffer: buffer, boxed: false)
-                    serializeInt32(unreadMentionsCount, buffer: buffer, boxed: false)
-                    buffer.appendInt32(481674261)
-                    buffer.appendInt32(Int32(messages.count))
-                    for item in messages {
-                        item.serialize(buffer, true)
-                    }
-                    buffer.appendInt32(481674261)
-                    buffer.appendInt32(Int32(chats.count))
-                    for item in chats {
-                        item.serialize(buffer, true)
-                    }
-                    buffer.appendInt32(481674261)
-                    buffer.appendInt32(Int32(users.count))
-                    for item in users {
-                        item.serialize(buffer, true)
-                    }
                     break
                 case .channelDifference(let flags, let pts, let timeout, let newMessages, let otherUpdates, let chats, let users):
                     if boxed {
@@ -2173,6 +2145,29 @@ struct updates {
                         item.serialize(buffer, true)
                     }
                     break
+                case .channelDifferenceTooLong(let flags, let timeout, let dialog, let messages, let chats, let users):
+                    if boxed {
+                        buffer.appendInt32(-1531132162)
+                    }
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 1) != 0 {serializeInt32(timeout!, buffer: buffer, boxed: false)}
+                    dialog.serialize(buffer, true)
+                    buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(messages.count))
+                    for item in messages {
+                        item.serialize(buffer, true)
+                    }
+                    buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(chats.count))
+                    for item in chats {
+                        item.serialize(buffer, true)
+                    }
+                    buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(users.count))
+                    for item in users {
+                        item.serialize(buffer, true)
+                    }
+                    break
     }
     }
     
@@ -2180,10 +2175,10 @@ struct updates {
         switch self {
                 case .channelDifferenceEmpty(let flags, let pts, let timeout):
                 return ("channelDifferenceEmpty", [("flags", flags), ("pts", pts), ("timeout", timeout)])
-                case .channelDifferenceTooLong(let flags, let pts, let timeout, let topMessage, let readInboxMaxId, let readOutboxMaxId, let unreadCount, let unreadMentionsCount, let messages, let chats, let users):
-                return ("channelDifferenceTooLong", [("flags", flags), ("pts", pts), ("timeout", timeout), ("topMessage", topMessage), ("readInboxMaxId", readInboxMaxId), ("readOutboxMaxId", readOutboxMaxId), ("unreadCount", unreadCount), ("unreadMentionsCount", unreadMentionsCount), ("messages", messages), ("chats", chats), ("users", users)])
                 case .channelDifference(let flags, let pts, let timeout, let newMessages, let otherUpdates, let chats, let users):
                 return ("channelDifference", [("flags", flags), ("pts", pts), ("timeout", timeout), ("newMessages", newMessages), ("otherUpdates", otherUpdates), ("chats", chats), ("users", users)])
+                case .channelDifferenceTooLong(let flags, let timeout, let dialog, let messages, let chats, let users):
+                return ("channelDifferenceTooLong", [("flags", flags), ("timeout", timeout), ("dialog", dialog), ("messages", messages), ("chats", chats), ("users", users)])
     }
     }
     
@@ -2199,53 +2194,6 @@ struct updates {
             let _c3 = (Int(_1!) & Int(1 << 1) == 0) || _3 != nil
             if _c1 && _c2 && _c3 {
                 return Api.updates.ChannelDifference.channelDifferenceEmpty(flags: _1!, pts: _2!, timeout: _3)
-            }
-            else {
-                return nil
-            }
-        }
-        static func parse_channelDifferenceTooLong(_ reader: BufferReader) -> ChannelDifference? {
-            var _1: Int32?
-            _1 = reader.readInt32()
-            var _2: Int32?
-            _2 = reader.readInt32()
-            var _3: Int32?
-            if Int(_1!) & Int(1 << 1) != 0 {_3 = reader.readInt32() }
-            var _4: Int32?
-            _4 = reader.readInt32()
-            var _5: Int32?
-            _5 = reader.readInt32()
-            var _6: Int32?
-            _6 = reader.readInt32()
-            var _7: Int32?
-            _7 = reader.readInt32()
-            var _8: Int32?
-            _8 = reader.readInt32()
-            var _9: [Api.Message]?
-            if let _ = reader.readInt32() {
-                _9 = Api.parseVector(reader, elementSignature: 0, elementType: Api.Message.self)
-            }
-            var _10: [Api.Chat]?
-            if let _ = reader.readInt32() {
-                _10 = Api.parseVector(reader, elementSignature: 0, elementType: Api.Chat.self)
-            }
-            var _11: [Api.User]?
-            if let _ = reader.readInt32() {
-                _11 = Api.parseVector(reader, elementSignature: 0, elementType: Api.User.self)
-            }
-            let _c1 = _1 != nil
-            let _c2 = _2 != nil
-            let _c3 = (Int(_1!) & Int(1 << 1) == 0) || _3 != nil
-            let _c4 = _4 != nil
-            let _c5 = _5 != nil
-            let _c6 = _6 != nil
-            let _c7 = _7 != nil
-            let _c8 = _8 != nil
-            let _c9 = _9 != nil
-            let _c10 = _10 != nil
-            let _c11 = _11 != nil
-            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 && _c7 && _c8 && _c9 && _c10 && _c11 {
-                return Api.updates.ChannelDifference.channelDifferenceTooLong(flags: _1!, pts: _2!, timeout: _3, topMessage: _4!, readInboxMaxId: _5!, readOutboxMaxId: _6!, unreadCount: _7!, unreadMentionsCount: _8!, messages: _9!, chats: _10!, users: _11!)
             }
             else {
                 return nil
@@ -2283,6 +2231,40 @@ struct updates {
             let _c7 = _7 != nil
             if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 && _c7 {
                 return Api.updates.ChannelDifference.channelDifference(flags: _1!, pts: _2!, timeout: _3, newMessages: _4!, otherUpdates: _5!, chats: _6!, users: _7!)
+            }
+            else {
+                return nil
+            }
+        }
+        static func parse_channelDifferenceTooLong(_ reader: BufferReader) -> ChannelDifference? {
+            var _1: Int32?
+            _1 = reader.readInt32()
+            var _2: Int32?
+            if Int(_1!) & Int(1 << 1) != 0 {_2 = reader.readInt32() }
+            var _3: Api.Dialog?
+            if let signature = reader.readInt32() {
+                _3 = Api.parse(reader, signature: signature) as? Api.Dialog
+            }
+            var _4: [Api.Message]?
+            if let _ = reader.readInt32() {
+                _4 = Api.parseVector(reader, elementSignature: 0, elementType: Api.Message.self)
+            }
+            var _5: [Api.Chat]?
+            if let _ = reader.readInt32() {
+                _5 = Api.parseVector(reader, elementSignature: 0, elementType: Api.Chat.self)
+            }
+            var _6: [Api.User]?
+            if let _ = reader.readInt32() {
+                _6 = Api.parseVector(reader, elementSignature: 0, elementType: Api.User.self)
+            }
+            let _c1 = _1 != nil
+            let _c2 = (Int(_1!) & Int(1 << 1) == 0) || _2 != nil
+            let _c3 = _3 != nil
+            let _c4 = _4 != nil
+            let _c5 = _5 != nil
+            let _c6 = _6 != nil
+            if _c1 && _c2 && _c3 && _c4 && _c5 && _c6 {
+                return Api.updates.ChannelDifference.channelDifferenceTooLong(flags: _1!, timeout: _2, dialog: _3!, messages: _4!, chats: _5!, users: _6!)
             }
             else {
                 return nil

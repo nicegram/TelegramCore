@@ -86,7 +86,7 @@ func managedSynchronizePinnedChatsOperations(postbox: Postbox, network: Network,
                 let signal = withTakenOperation(postbox: postbox, peerId: entry.peerId, tagLocalIndex: entry.tagLocalIndex, { transaction, entry -> Signal<Void, NoError> in
                     if let entry = entry {
                         if let operation = entry.contents as? SynchronizePinnedChatsOperation {
-                            return synchronizePinnedChats(transaction: transaction, postbox: postbox, network: network, accountPeerId: accountPeerId, stateManager: stateManager, operation: operation)
+                            return synchronizePinnedChats(transaction: transaction, postbox: postbox, network: network, accountPeerId: accountPeerId, stateManager: stateManager, groupId: PeerGroupId(rawValue: entry.peerId.id), operation: operation)
                         } else {
                             assertionFailure()
                         }
@@ -113,7 +113,7 @@ func managedSynchronizePinnedChatsOperations(postbox: Postbox, network: Network,
     }
 }
 
-private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, network: Network, accountPeerId: PeerId, stateManager: AccountStateManager, operation: SynchronizePinnedChatsOperation) -> Signal<Void, NoError> {
+private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, network: Network, accountPeerId: PeerId, stateManager: AccountStateManager, groupId: PeerGroupId, operation: SynchronizePinnedChatsOperation) -> Signal<Void, NoError> {
     let initialRemoteItemIds = operation.previousItemIds
     let initialRemoteItemIdsWithoutSecretChats = initialRemoteItemIds.filter { item in
         switch item {
@@ -123,7 +123,7 @@ private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, 
                 return true
         }
     }
-    let localItemIds = transaction.getPinnedItemIds()
+    let localItemIds = transaction.getPinnedItemIds(groupId: groupId)
     let localItemIdsWithoutSecretChats = localItemIds.filter { item in
         switch item {
             case let .peer(peerId):
@@ -133,7 +133,7 @@ private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, 
         }
     }
     
-    return network.request(Api.functions.messages.getPinnedDialogs())
+    return network.request(Api.functions.messages.getPinnedDialogs(folderId: groupId.rawValue))
     |> retryRequest
     |> mapToSignal { dialogs -> Signal<Void, NoError> in
         var storeMessages: [StoreMessage] = []
@@ -148,13 +148,9 @@ private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, 
         
         switch dialogs {
             case let .peerDialogs(dialogs, messages, chats, users, _):
-                var channelGroupIds: [PeerId: PeerGroupId] = [:]
                 for chat in chats {
                     if let groupOrChannel = parseTelegramGroupOrChannel(chat: chat) {
                         peers.append(groupOrChannel)
-                        if let channel = groupOrChannel as? TelegramChannel, let peerGroupId = channel.peerGroupId {
-                            channelGroupIds[channel.id] = peerGroupId
-                        }
                     }
                 }
                 for user in users {
@@ -175,10 +171,7 @@ private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, 
                     var apiChannelPts: Int32?
                     let apiNotificationSettings: Api.PeerNotifySettings
                     switch dialog {
-                        case let .dialog(flags, peer, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, peerNotificationSettings, pts, _):
-                            if channelGroupIds[peer.peerId] != nil {
-                                continue loop
-                            }
+                        case let .dialog(flags, peer, topMessage, readInboxMaxId, readOutboxMaxId, unreadCount, unreadMentionsCount, peerNotificationSettings, pts, _, _):
                             apiPeer = peer
                             apiTopMessage = topMessage
                             apiReadInboxMaxId = readInboxMaxId
@@ -187,10 +180,9 @@ private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, 
                             apiMarkedUnread = (flags & (1 << 3)) != 0
                             apiNotificationSettings = peerNotificationSettings
                             apiChannelPts = pts
-                        /*feed*/
-                        /*case let .dialogFeed(_, _, _, feedId, _, _, _, _):
-                            remoteItemIds.append(.group(PeerGroupId(rawValue: feedId)))
-                            continue loop*/
+                        case .dialogFolder:
+                            //assertionFailure()
+                            continue loop
                     }
                     
                     let peerId: PeerId
@@ -240,7 +232,7 @@ private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, 
                 return updated
             })
             
-            transaction.setPinnedItemIds(resultingItemIds)
+            transaction.setPinnedItemIds(groupId: groupId, itemIds: resultingItemIds)
             
             updatePeerPresences(transaction: transaction, accountPeerId: accountPeerId, peerPresences: peerPresences)
             
@@ -278,21 +270,17 @@ private func synchronizePinnedChats(transaction: Transaction, postbox: Postbox, 
                             if let peer = transaction.getPeer(peerId), let inputPeer = apiInputPeer(peer) {
                                 inputDialogPeers.append(Api.InputDialogPeer.inputDialogPeer(peer: inputPeer))
                             }
-                        case let .group(groupId):
-                            /*feed*/
-                            /*inputDialogPeers.append(.inputDialogPeerFeed(feedId: groupId.rawValue))*/
-                            break
                     }
                 }
                 
-                return network.request(Api.functions.messages.reorderPinnedDialogs(flags: 1 << 0, order: inputDialogPeers))
-                    |> `catch` { _ -> Signal<Api.Bool, NoError> in
-                        return .single(Api.Bool.boolFalse)
+                return network.request(Api.functions.messages.reorderPinnedDialogs(flags: 1 << 0, folderId: groupId.rawValue, order: inputDialogPeers))
+                |> `catch` { _ -> Signal<Api.Bool, NoError> in
+                    return .single(Api.Bool.boolFalse)
+                }
+                |> mapToSignal { result -> Signal<Void, NoError> in
+                    return postbox.transaction { transaction -> Void in
                     }
-                    |> mapToSignal { result -> Signal<Void, NoError> in
-                        return postbox.transaction { transaction -> Void in
-                        }
-                    }
+                }
             }
         }
         |> switchToLatest

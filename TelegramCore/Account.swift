@@ -237,9 +237,11 @@ public enum AccountResult {
 }
 
 let telegramPostboxSeedConfiguration: SeedConfiguration = {
-    var initializeMessageNamespacesWithHoles: [(PeerId.Namespace, MessageId.Namespace)] = []
+    var messageHoles: [PeerId.Namespace: [MessageId.Namespace: Set<MessageTags>]] = [:]
     for peerNamespace in peerIdNamespacesWithInitialCloudMessageHoles {
-        initializeMessageNamespacesWithHoles.append((peerNamespace, Namespaces.Message.Cloud))
+        messageHoles[peerNamespace] = [
+            Namespaces.Message.Cloud: Set(MessageTags.all)
+        ]
     }
     
     var globalMessageIdsPeerIdNamespaces = Set<GlobalMessageIdsNamespace>()
@@ -247,7 +249,7 @@ let telegramPostboxSeedConfiguration: SeedConfiguration = {
         globalMessageIdsPeerIdNamespaces.insert(GlobalMessageIdsNamespace(peerIdNamespace: peerIdNamespace, messageIdNamespace: Namespaces.Message.Cloud))
     }
     
-    return SeedConfiguration(globalMessageIdsPeerIdNamespaces: globalMessageIdsPeerIdNamespaces, initializeChatListWithHole: (topLevel: ChatListHole(index: MessageIndex(id: MessageId(peerId: PeerId(namespace: Namespaces.Peer.Empty, id: 0), namespace: Namespaces.Message.Cloud, id: 1), timestamp: Int32.max - 1)), groups: ChatListHole(index: MessageIndex(id: MessageId(peerId: PeerId(namespace: Namespaces.Peer.Empty, id: 0), namespace: Namespaces.Message.Cloud, id: 1), timestamp: 1))), initializeMessageNamespacesWithHoles: initializeMessageNamespacesWithHoles, existingMessageTags: MessageTags.all, messageTagsWithSummary: MessageTags.unseenPersonalMessage, existingGlobalMessageTags: GlobalMessageTags.all, peerNamespacesRequiringMessageTextIndex: [Namespaces.Peer.SecretChat], peerSummaryCounterTags: { peer in
+    return SeedConfiguration(globalMessageIdsPeerIdNamespaces: globalMessageIdsPeerIdNamespaces, initializeChatListWithHole: (topLevel: ChatListHole(index: MessageIndex(id: MessageId(peerId: PeerId(namespace: Namespaces.Peer.Empty, id: 0), namespace: Namespaces.Message.Cloud, id: 1), timestamp: Int32.max - 1)), groups: ChatListHole(index: MessageIndex(id: MessageId(peerId: PeerId(namespace: Namespaces.Peer.Empty, id: 0), namespace: Namespaces.Message.Cloud, id: 1), timestamp: Int32.max - 1))), messageHoles: messageHoles, existingMessageTags: MessageTags.all, messageTagsWithSummary: MessageTags.unseenPersonalMessage, existingGlobalMessageTags: GlobalMessageTags.all, peerNamespacesRequiringMessageTextIndex: [Namespaces.Peer.SecretChat], peerSummaryCounterTags: { peer in
         if let peer = peer as? TelegramChannel {
             switch peer.info {
                 case .group:
@@ -262,66 +264,81 @@ let telegramPostboxSeedConfiguration: SeedConfiguration = {
         } else {
             return [.regularChatsAndPrivateGroups]
         }
-    }, additionalChatListIndexNamespace: Namespaces.Message.Cloud)
+    }, additionalChatListIndexNamespace: Namespaces.Message.Cloud, messageNamespacesRequiringGroupStatsValidation: [Namespaces.Message.Cloud])
 }()
 
-public func accountPreferenceEntries(rootPath: String, id: AccountRecordId, keys: Set<ValueBoxKey>) -> Signal<(String, [ValueBoxKey: PreferencesEntry]), NoError> {
+public enum AccountPreferenceEntriesResult {
+    case progress(Float)
+    case result(String, [ValueBoxKey: PreferencesEntry])
+}
+
+public func accountPreferenceEntries(rootPath: String, id: AccountRecordId, keys: Set<ValueBoxKey>, encryptionParameters: ValueBoxEncryptionParameters) -> Signal<AccountPreferenceEntriesResult, NoError> {
     let path = "\(rootPath)/\(accountRecordIdPathName(id))"
-    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration)
+    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration, encryptionParameters: encryptionParameters)
     return postbox
-    |> mapToSignal { value -> Signal<(String, [ValueBoxKey: PreferencesEntry]), NoError> in
+    |> mapToSignal { value -> Signal<AccountPreferenceEntriesResult, NoError> in
         switch value {
+            case let .upgrading(progress):
+                return .single(.progress(progress))
             case let .postbox(postbox):
-                return postbox.transaction { transaction -> (String, [ValueBoxKey: PreferencesEntry]) in
+                return postbox.transaction { transaction -> AccountPreferenceEntriesResult in
                     var result: [ValueBoxKey: PreferencesEntry] = [:]
                     for key in keys {
                         if let value = transaction.getPreferencesEntry(key: key) {
                             result[key] = value
                         }
                     }
-                    return (path, result)
+                    return .result(path, result)
                 }
-            default:
-                return .complete()
         }
     }
 }
 
-public func accountNoticeEntries(rootPath: String, id: AccountRecordId) -> Signal<(String, [ValueBoxKey: NoticeEntry]), NoError> {
+public enum AccountNoticeEntriesResult {
+    case progress(Float)
+    case result(String, [ValueBoxKey: NoticeEntry])
+}
+
+public func accountNoticeEntries(rootPath: String, id: AccountRecordId, encryptionParameters: ValueBoxEncryptionParameters) -> Signal<AccountNoticeEntriesResult, NoError> {
     let path = "\(rootPath)/\(accountRecordIdPathName(id))"
-    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration)
+    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration, encryptionParameters: encryptionParameters)
     return postbox
-    |> mapToSignal { value -> Signal<(String, [ValueBoxKey: NoticeEntry]), NoError> in
+    |> mapToSignal { value -> Signal<AccountNoticeEntriesResult, NoError> in
         switch value {
+            case let .upgrading(progress):
+                return .single(.progress(progress))
             case let .postbox(postbox):
-                return postbox.transaction { transaction -> (String, [ValueBoxKey: NoticeEntry]) in
-                    return (path, transaction.getAllNoticeEntries())
+                return postbox.transaction { transaction -> AccountNoticeEntriesResult in
+                    return .result(path, transaction.getAllNoticeEntries())
                 }
-            default:
-                return .complete()
         }
     }
 }
 
-public func accountLegacyAccessChallengeData(rootPath: String, id: AccountRecordId) -> Signal<PostboxAccessChallengeData, NoError> {
+public enum LegacyAccessChallengeDataResult {
+    case progress(Float)
+    case result(PostboxAccessChallengeData)
+}
+
+public func accountLegacyAccessChallengeData(rootPath: String, id: AccountRecordId, encryptionParameters: ValueBoxEncryptionParameters) -> Signal<LegacyAccessChallengeDataResult, NoError> {
     let path = "\(rootPath)/\(accountRecordIdPathName(id))"
-    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration)
+    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration, encryptionParameters: encryptionParameters)
     return postbox
-    |> mapToSignal { value -> Signal<PostboxAccessChallengeData, NoError> in
+    |> mapToSignal { value -> Signal<LegacyAccessChallengeDataResult, NoError> in
         switch value {
+            case let .upgrading(progress):
+                return .single(.progress(progress))
             case let .postbox(postbox):
-                return postbox.transaction { transaction -> PostboxAccessChallengeData in
-                    return transaction.legacyGetAccessChallengeData()
+                return postbox.transaction { transaction -> LegacyAccessChallengeDataResult in
+                    return .result(transaction.legacyGetAccessChallengeData())
                 }
-            default:
-                return .complete()
         }
     }
 }
 
-public func accountTransaction<T>(rootPath: String, id: AccountRecordId, transaction: @escaping (Transaction) -> T) -> Signal<T, NoError> {
+public func accountTransaction<T>(rootPath: String, id: AccountRecordId, encryptionParameters: ValueBoxEncryptionParameters, transaction: @escaping (Transaction) -> T) -> Signal<T, NoError> {
     let path = "\(rootPath)/\(accountRecordIdPathName(id))"
-    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration)
+    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration, encryptionParameters: encryptionParameters)
     return postbox
     |> mapToSignal { value -> Signal<T, NoError> in
         switch value {
@@ -333,10 +350,10 @@ public func accountTransaction<T>(rootPath: String, id: AccountRecordId, transac
     }
 }
 
-public func accountWithId(accountManager: AccountManager, networkArguments: NetworkInitializationArguments, id: AccountRecordId, supplementary: Bool, rootPath: String, beginWithTestingEnvironment: Bool, auxiliaryMethods: AccountAuxiliaryMethods, shouldKeepAutoConnection: Bool = true) -> Signal<AccountResult, NoError> {
+public func accountWithId(accountManager: AccountManager, networkArguments: NetworkInitializationArguments, id: AccountRecordId, encryptionParameters: ValueBoxEncryptionParameters, supplementary: Bool, rootPath: String, beginWithTestingEnvironment: Bool, auxiliaryMethods: AccountAuxiliaryMethods, shouldKeepAutoConnection: Bool = true) -> Signal<AccountResult, NoError> {
     let path = "\(rootPath)/\(accountRecordIdPathName(id))"
     
-    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration)
+    let postbox = openPostbox(basePath: path + "/postbox", seedConfiguration: telegramPostboxSeedConfiguration, encryptionParameters: encryptionParameters)
     
     return postbox
     |> mapToSignal { result -> Signal<AccountResult, NoError> in
@@ -368,7 +385,7 @@ public func accountWithId(accountManager: AccountManager, networkArguments: Netw
                                     |> mapToSignal { phoneNumber in
                                         return initializedNetwork(arguments: networkArguments, supplementary: supplementary, datacenterId: Int(authorizedState.masterDatacenterId), keychain: keychain, basePath: path, testingEnvironment: authorizedState.isTestingEnvironment, languageCode: localizationSettings?.primaryComponent.languageCode, proxySettings: proxySettings, networkSettings: networkSettings, phoneNumber: phoneNumber)
                                         |> map { network -> AccountResult in
-                                            return .authorized(Account(accountManager: accountManager, id: id, basePath: path, testingEnvironment: authorizedState.isTestingEnvironment, postbox: postbox, network: network, networkArguments: networkArguments, peerId: authorizedState.peerId, auxiliaryMethods: auxiliaryMethods))
+                                            return .authorized(Account(accountManager: accountManager, id: id, basePath: path, testingEnvironment: authorizedState.isTestingEnvironment, postbox: postbox, network: network, networkArguments: networkArguments, peerId: authorizedState.peerId, auxiliaryMethods: auxiliaryMethods, supplementary: supplementary))
                                         }
                                     }
                                 case _:
@@ -898,6 +915,7 @@ public class Account {
     public let id: AccountRecordId
     public let basePath: String
     public let testingEnvironment: Bool
+    public let supplementary: Bool
     public let postbox: Postbox
     public let network: Network
     public let networkArguments: NetworkInitializationArguments
@@ -957,7 +975,10 @@ public class Account {
     
     var transformOutgoingMessageMedia: TransformOutgoingMessageMedia?
     
-    public init(accountManager: AccountManager, id: AccountRecordId, basePath: String, testingEnvironment: Bool, postbox: Postbox, network: Network, networkArguments: NetworkInitializationArguments, peerId: PeerId, auxiliaryMethods: AccountAuxiliaryMethods) {
+    private var lastSmallLogPostTimestamp: Double?
+    private let smallLogPostDisposable = MetaDisposable()
+    
+    public init(accountManager: AccountManager, id: AccountRecordId, basePath: String, testingEnvironment: Bool, postbox: Postbox, network: Network, networkArguments: NetworkInitializationArguments, peerId: PeerId, auxiliaryMethods: AccountAuxiliaryMethods, supplementary: Bool) {
         self.id = id
         self.basePath = basePath
         self.testingEnvironment = testingEnvironment
@@ -967,6 +988,7 @@ public class Account {
         self.peerId = peerId
         
         self.auxiliaryMethods = auxiliaryMethods
+        self.supplementary = supplementary
         
         self.peerInputActivityManager = PeerInputActivityManager()
         self.callSessionManager = CallSessionManager(postbox: postbox, network: network, maxLayer: networkArguments.voipMaxLayer, addUpdates: { [weak self] updates in
@@ -980,6 +1002,7 @@ public class Account {
         self.accountPresenceManager = AccountPresenceManager(shouldKeepOnlinePresence: self.shouldKeepOnlinePresence.get(), network: network)
         let _ = (postbox.transaction { transaction -> Void in
             transaction.updatePeerPresencesInternal(presences: [peerId: TelegramUserPresence(status: .present(until: Int32.max - 1), lastActivity: 0)], merge: { _, updated in return updated })
+            transaction.setNeedsPeerGroupMessageStatsSynchronization(groupId: Namespaces.PeerGroup.archive, namespace: Namespaces.Message.Cloud)
         }).start()
         self.notificationAutolockReportManager = NotificationAutolockReportManager(deadline: self.autolockReportDeadline.get(), network: network)
         self.autolockReportDeadline.set(
@@ -1005,9 +1028,13 @@ public class Account {
                 strongSelf.callSessionManager.dropAll()
             }
         }
+        self.network.didReceiveSoftAuthResetError = { [weak self] in
+            self?.postSmallLogIfNeeded()
+        }
         
-        let previousNetworkStatus = Atomic<Bool?>(value: nil)
         let networkStateQueue = Queue()
+        /*
+        let previousNetworkStatus = Atomic<Bool?>(value: nil)
         let delayNetworkStatus = self.shouldBeServiceTaskMaster.get()
         |> map { mode -> Bool in
             switch mode {
@@ -1039,8 +1066,8 @@ public class Account {
             } else {
                 return .single(!value)
             }
-        }
-        let networkStateSignal = combineLatest(self.stateManager.isUpdating |> deliverOn(networkStateQueue), network.connectionStatus |> deliverOn(networkStateQueue)/*, delayNetworkStatus |> deliverOn(networkStateQueue)*/)
+        }*/
+        let networkStateSignal = combineLatest(queue: networkStateQueue, self.stateManager.isUpdating, network.connectionStatus/*, delayNetworkStatus*/)
         |> map { isUpdating, connectionStatus/*, delayNetworkStatus*/ -> AccountNetworkState in
             /*if delayNetworkStatus {
                 return .online(proxy: nil)
@@ -1126,7 +1153,7 @@ public class Account {
         self.managedOperationsDisposable.add(managedGlobalNotificationSettings(postbox: self.postbox, network: self.network).start())
         self.managedOperationsDisposable.add(managedSynchronizePinnedChatsOperations(postbox: self.postbox, network: self.network, accountPeerId: self.peerId, stateManager: self.stateManager).start())
         
-        self.managedOperationsDisposable.add(managedSynchronizeGroupedPeersOperations(postbox: self.postbox, network: self.network).start())
+        self.managedOperationsDisposable.add(managedSynchronizeGroupedPeersOperations(postbox: self.postbox, network: self.network, stateManager: self.stateManager).start())
         self.managedOperationsDisposable.add(managedSynchronizeInstalledStickerPacksOperations(postbox: self.postbox, network: self.network, stateManager: self.stateManager, namespace: .stickers).start())
         self.managedOperationsDisposable.add(managedSynchronizeInstalledStickerPacksOperations(postbox: self.postbox, network: self.network, stateManager: self.stateManager, namespace: .masks).start())
         self.managedOperationsDisposable.add(managedSynchronizeMarkFeaturedStickerPacksAsSeenOperations(postbox: self.postbox, network: self.network).start())
@@ -1199,6 +1226,8 @@ public class Account {
         self.managedOperationsDisposable.add(managedPendingPeerNotificationSettings(postbox: self.postbox, network: self.network).start())
         self.managedOperationsDisposable.add(managedSynchronizeAppLogEventsOperations(postbox: self.postbox, network: self.network).start())
         
+        self.managedOperationsDisposable.add(managedNotificationSettingsBehaviors(postbox: self.postbox).start())
+        
         let mediaBox = postbox.mediaBox
         self.storageSettingsDisposable = accountManager.sharedData(keys: [SharedDataKeys.cacheStorageSettings]).start(next: { [weak mediaBox] sharedData in
             guard let mediaBox = mediaBox else {
@@ -1222,12 +1251,39 @@ public class Account {
         self.managedServiceViewsDisposable.dispose()
         self.managedOperationsDisposable.dispose()
         self.storageSettingsDisposable?.dispose()
+        self.smallLogPostDisposable.dispose()
+    }
+    
+    private func postSmallLogIfNeeded() {
+        let timestamp = CFAbsoluteTimeGetCurrent()
+        if self.lastSmallLogPostTimestamp == nil || self.lastSmallLogPostTimestamp! < timestamp - 30.0 {
+            self.lastSmallLogPostTimestamp = timestamp
+            let network = self.network
+            
+            self.smallLogPostDisposable.set((Logger.shared.collectShortLog()
+            |> mapToSignal { events -> Signal<Never, NoError> in
+                if events.isEmpty {
+                    return .complete()
+                } else {
+                    return network.request(Api.functions.help.saveAppLog(events: events.map { event -> Api.InputAppEvent in
+                        return .inputAppEvent(time: event.0, type: "", peer: 0, data: .jsonString(value: event.1))
+                    }))
+                    |> ignoreValues
+                    |> `catch` { _ -> Signal<Never, NoError> in
+                        return .complete()
+                    }
+                }
+            }).start())
+        }
     }
     
     public func resetStateManagement() {
         self.stateManager.reset()
         self.restartContactManagement()
         self.managedStickerPacksDisposable.set(manageStickerPacks(network: self.network, postbox: self.postbox).start())
+        if !self.supplementary {
+            self.viewTracker.chatHistoryPreloadManager.start()
+        }
     }
     
     public func restartContactManagement() {

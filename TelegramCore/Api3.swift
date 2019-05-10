@@ -1,6 +1,6 @@
 extension Api {
 struct upload {
-    enum WebFile: TypeConstructorDescription {
+    indirect enum WebFile: TypeConstructorDescription {
         case webFile(size: Int32, mimeType: String, fileType: Api.storage.FileType, mtime: Int32, bytes: Buffer)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -52,7 +52,7 @@ struct upload {
         }
     
     }
-    enum File: TypeConstructorDescription {
+    indirect enum File: TypeConstructorDescription {
         case file(type: Api.storage.FileType, mtime: Int32, bytes: Buffer)
         case fileCdnRedirect(dcId: Int32, fileToken: Buffer, encryptionKey: Buffer, encryptionIv: Buffer, fileHashes: [Api.FileHash])
     
@@ -138,7 +138,7 @@ struct upload {
         }
     
     }
-    enum CdnFile: TypeConstructorDescription {
+    indirect enum CdnFile: TypeConstructorDescription {
         case cdnFileReuploadNeeded(requestToken: Buffer)
         case cdnFile(bytes: Buffer)
     
@@ -196,7 +196,7 @@ struct upload {
 }
 extension Api {
 struct storage {
-    enum FileType: TypeConstructorDescription {
+    indirect enum FileType: TypeConstructorDescription {
         case fileUnknown
         case filePartial
         case fileJpeg
@@ -334,7 +334,7 @@ struct storage {
 }
 extension Api {
 struct account {
-    enum TmpPassword: TypeConstructorDescription {
+    indirect enum TmpPassword: TypeConstructorDescription {
         case tmpPassword(tmpPassword: Buffer, validUntil: Int32)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -372,7 +372,7 @@ struct account {
         }
     
     }
-    enum PasswordSettings: TypeConstructorDescription {
+    indirect enum PasswordSettings: TypeConstructorDescription {
         case passwordSettings(flags: Int32, email: String?, secureSettings: Api.SecureSecretSettings?)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -416,7 +416,7 @@ struct account {
         }
     
     }
-    enum WallPapers: TypeConstructorDescription {
+    indirect enum WallPapers: TypeConstructorDescription {
         case wallPapersNotModified
         case wallPapers(hash: Int32, wallpapers: [Api.WallPaper])
     
@@ -472,7 +472,7 @@ struct account {
         }
     
     }
-    enum PasswordInputSettings: TypeConstructorDescription {
+    indirect enum PasswordInputSettings: TypeConstructorDescription {
         case passwordInputSettings(flags: Int32, newAlgo: Api.PasswordKdfAlgo?, newPasswordHash: Buffer?, hint: String?, email: String?, newSecureSettings: Api.SecureSecretSettings?)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -530,7 +530,7 @@ struct account {
         }
     
     }
-    enum WebAuthorizations: TypeConstructorDescription {
+    indirect enum WebAuthorizations: TypeConstructorDescription {
         case webAuthorizations(authorizations: [Api.WebAuthorization], users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -580,7 +580,7 @@ struct account {
         }
     
     }
-    enum SentEmailCode: TypeConstructorDescription {
+    indirect enum SentEmailCode: TypeConstructorDescription {
         case sentEmailCode(emailPattern: String, length: Int32)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -618,7 +618,7 @@ struct account {
         }
     
     }
-    enum Authorizations: TypeConstructorDescription {
+    indirect enum Authorizations: TypeConstructorDescription {
         case authorizations(authorizations: [Api.Authorization])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -658,7 +658,7 @@ struct account {
         }
     
     }
-    enum AuthorizationForm: TypeConstructorDescription {
+    indirect enum AuthorizationForm: TypeConstructorDescription {
         case authorizationForm(flags: Int32, requiredTypes: [Api.SecureRequiredType], values: [Api.SecureValue], errors: [Api.SecureValueError], users: [Api.User], privacyPolicyUrl: String?)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -736,7 +736,7 @@ struct account {
         }
     
     }
-    enum Password: TypeConstructorDescription {
+    indirect enum Password: TypeConstructorDescription {
         case password(flags: Int32, currentAlgo: Api.PasswordKdfAlgo?, srpB: Buffer?, srpId: Int64?, hint: String?, emailUnconfirmedPattern: String?, newAlgo: Api.PasswordKdfAlgo, newSecureAlgo: Api.SecurePasswordKdfAlgo, secureRandom: Buffer)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -808,7 +808,7 @@ struct account {
         }
     
     }
-    enum PrivacyRules: TypeConstructorDescription {
+    indirect enum PrivacyRules: TypeConstructorDescription {
         case privacyRules(rules: [Api.PrivacyRule], users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -858,7 +858,7 @@ struct account {
         }
     
     }
-    enum AutoDownloadSettings: TypeConstructorDescription {
+    indirect enum AutoDownloadSettings: TypeConstructorDescription {
         case autoDownloadSettings(low: Api.AutoDownloadSettings, medium: Api.AutoDownloadSettings, high: Api.AutoDownloadSettings)
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -910,7 +910,7 @@ struct account {
 }
 extension Api {
 struct photos {
-    enum Photo: TypeConstructorDescription {
+    indirect enum Photo: TypeConstructorDescription {
         case photo(photo: Api.Photo, users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -956,7 +956,7 @@ struct photos {
         }
     
     }
-    enum Photos: TypeConstructorDescription {
+    indirect enum Photos: TypeConstructorDescription {
         case photos(photos: [Api.Photo], users: [Api.User])
         case photosSlice(count: Int32, photos: [Api.Photo], users: [Api.User])
     
@@ -1050,7 +1050,7 @@ struct photos {
 }
 extension Api {
 struct phone {
-    enum PhoneCall: TypeConstructorDescription {
+    indirect enum PhoneCall: TypeConstructorDescription {
         case phoneCall(phoneCall: Api.PhoneCall, users: [Api.User])
     
     func serialize(_ buffer: Buffer, _ boxed: Swift.Bool) {
@@ -2213,20 +2213,6 @@ extension Api {
                     })
                 }
             
-                static func getPinnedDialogs() -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.PeerDialogs>) {
-                    let buffer = Buffer()
-                    buffer.appendInt32(-497756594)
-                    
-                    return (FunctionDescription(name: "messages.getPinnedDialogs", parameters: []), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.PeerDialogs? in
-                        let reader = BufferReader(buffer)
-                        var result: Api.messages.PeerDialogs?
-                        if let signature = reader.readInt32() {
-                            result = Api.parse(reader, signature: signature) as? Api.messages.PeerDialogs
-                        }
-                        return result
-                    })
-                }
-            
                 static func setBotShippingResults(flags: Int32, queryId: Int64, error: String?, shippingOptions: [Api.ShippingOption]?) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
                     let buffer = Buffer()
                     buffer.appendInt32(-436833542)
@@ -2559,25 +2545,6 @@ extension Api {
                     })
                 }
             
-                static func reorderPinnedDialogs(flags: Int32, order: [Api.InputDialogPeer]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
-                    let buffer = Buffer()
-                    buffer.appendInt32(1532089919)
-                    serializeInt32(flags, buffer: buffer, boxed: false)
-                    buffer.appendInt32(481674261)
-                    buffer.appendInt32(Int32(order.count))
-                    for item in order {
-                        item.serialize(buffer, true)
-                    }
-                    return (FunctionDescription(name: "messages.reorderPinnedDialogs", parameters: [("flags", flags), ("order", order)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
-                        let reader = BufferReader(buffer)
-                        var result: Api.Bool?
-                        if let signature = reader.readInt32() {
-                            result = Api.parse(reader, signature: signature) as? Api.Bool
-                        }
-                        return result
-                    })
-                }
-            
                 static func getPeerDialogs(peers: [Api.InputDialogPeer]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.PeerDialogs>) {
                     let buffer = Buffer()
                     buffer.appendInt32(-462373635)
@@ -2651,25 +2618,6 @@ extension Api {
                         var result: [Api.DialogPeer]?
                         if let _ = reader.readInt32() {
                             result = Api.parseVector(reader, elementSignature: 0, elementType: Api.DialogPeer.self)
-                        }
-                        return result
-                    })
-                }
-            
-                static func getDialogs(flags: Int32, offsetDate: Int32, offsetId: Int32, offsetPeer: Api.InputPeer, limit: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Dialogs>) {
-                    let buffer = Buffer()
-                    buffer.appendInt32(-1332171034)
-                    serializeInt32(flags, buffer: buffer, boxed: false)
-                    serializeInt32(offsetDate, buffer: buffer, boxed: false)
-                    serializeInt32(offsetId, buffer: buffer, boxed: false)
-                    offsetPeer.serialize(buffer, true)
-                    serializeInt32(limit, buffer: buffer, boxed: false)
-                    serializeInt32(hash, buffer: buffer, boxed: false)
-                    return (FunctionDescription(name: "messages.getDialogs", parameters: [("flags", flags), ("offsetDate", offsetDate), ("offsetId", offsetId), ("offsetPeer", offsetPeer), ("limit", limit), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Dialogs? in
-                        let reader = BufferReader(buffer)
-                        var result: Api.messages.Dialogs?
-                        if let signature = reader.readInt32() {
-                            result = Api.parse(reader, signature: signature) as? Api.messages.Dialogs
                         }
                         return result
                     })
@@ -2885,6 +2833,60 @@ extension Api {
                         var result: Api.EmojiURL?
                         if let signature = reader.readInt32() {
                             result = Api.parse(reader, signature: signature) as? Api.EmojiURL
+                        }
+                        return result
+                    })
+                }
+            
+                static func reorderPinnedDialogs(flags: Int32, folderId: Int32, order: [Api.InputDialogPeer]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(991616823)
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    serializeInt32(folderId, buffer: buffer, boxed: false)
+                    buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(order.count))
+                    for item in order {
+                        item.serialize(buffer, true)
+                    }
+                    return (FunctionDescription(name: "messages.reorderPinnedDialogs", parameters: [("flags", flags), ("folderId", folderId), ("order", order)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Bool? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Bool?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Bool
+                        }
+                        return result
+                    })
+                }
+            
+                static func getPinnedDialogs(folderId: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.PeerDialogs>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-692498958)
+                    serializeInt32(folderId, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "messages.getPinnedDialogs", parameters: [("folderId", folderId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.PeerDialogs? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.messages.PeerDialogs?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.messages.PeerDialogs
+                        }
+                        return result
+                    })
+                }
+            
+                static func getDialogs(flags: Int32, folderId: Int32?, offsetDate: Int32, offsetId: Int32, offsetPeer: Api.InputPeer, limit: Int32, hash: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.messages.Dialogs>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-1594999949)
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    if Int(flags) & Int(1 << 1) != 0 {serializeInt32(folderId!, buffer: buffer, boxed: false)}
+                    serializeInt32(offsetDate, buffer: buffer, boxed: false)
+                    serializeInt32(offsetId, buffer: buffer, boxed: false)
+                    offsetPeer.serialize(buffer, true)
+                    serializeInt32(limit, buffer: buffer, boxed: false)
+                    serializeInt32(hash, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "messages.getDialogs", parameters: [("flags", flags), ("folderId", folderId), ("offsetDate", offsetDate), ("offsetId", offsetId), ("offsetPeer", offsetPeer), ("limit", limit), ("hash", hash)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.messages.Dialogs? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.messages.Dialogs?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.messages.Dialogs
                         }
                         return result
                     })
@@ -4356,6 +4358,39 @@ extension Api {
                     })
                 }
             }
+            struct folders {
+                static func editPeerFolders(folderPeers: [Api.InputFolderPeer]) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(1749536939)
+                    buffer.appendInt32(481674261)
+                    buffer.appendInt32(Int32(folderPeers.count))
+                    for item in folderPeers {
+                        item.serialize(buffer, true)
+                    }
+                    return (FunctionDescription(name: "folders.editPeerFolders", parameters: [("folderPeers", folderPeers)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Updates?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Updates
+                        }
+                        return result
+                    })
+                }
+            
+                static func deleteFolder(folderId: Int32) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(472471681)
+                    serializeInt32(folderId, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "folders.deleteFolder", parameters: [("folderId", folderId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Updates?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Updates
+                        }
+                        return result
+                    })
+                }
+            }
             struct upload {
                 static func saveFilePart(fileId: Int64, filePart: Int32, bytes: Buffer) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
                     let buffer = Buffer()
@@ -5449,23 +5484,6 @@ extension Api {
                     })
                 }
             
-                static func requestCall(userId: Api.InputUser, randomId: Int32, gAHash: Buffer, `protocol`: Api.PhoneCallProtocol) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.phone.PhoneCall>) {
-                    let buffer = Buffer()
-                    buffer.appendInt32(1536537556)
-                    userId.serialize(buffer, true)
-                    serializeInt32(randomId, buffer: buffer, boxed: false)
-                    serializeBytes(gAHash, buffer: buffer, boxed: false)
-                    `protocol`.serialize(buffer, true)
-                    return (FunctionDescription(name: "phone.requestCall", parameters: [("userId", userId), ("randomId", randomId), ("gAHash", gAHash), ("`protocol`", `protocol`)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.phone.PhoneCall? in
-                        let reader = BufferReader(buffer)
-                        var result: Api.phone.PhoneCall?
-                        if let signature = reader.readInt32() {
-                            result = Api.parse(reader, signature: signature) as? Api.phone.PhoneCall
-                        }
-                        return result
-                    })
-                }
-            
                 static func acceptCall(peer: Api.InputPhoneCall, gB: Buffer, `protocol`: Api.PhoneCallProtocol) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.phone.PhoneCall>) {
                     let buffer = Buffer()
                     buffer.appendInt32(1003664544)
@@ -5513,23 +5531,6 @@ extension Api {
                     })
                 }
             
-                static func discardCall(peer: Api.InputPhoneCall, duration: Int32, reason: Api.PhoneCallDiscardReason, connectionId: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
-                    let buffer = Buffer()
-                    buffer.appendInt32(2027164582)
-                    peer.serialize(buffer, true)
-                    serializeInt32(duration, buffer: buffer, boxed: false)
-                    reason.serialize(buffer, true)
-                    serializeInt64(connectionId, buffer: buffer, boxed: false)
-                    return (FunctionDescription(name: "phone.discardCall", parameters: [("peer", peer), ("duration", duration), ("reason", reason), ("connectionId", connectionId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
-                        let reader = BufferReader(buffer)
-                        var result: Api.Updates?
-                        if let signature = reader.readInt32() {
-                            result = Api.parse(reader, signature: signature) as? Api.Updates
-                        }
-                        return result
-                    })
-                }
-            
                 static func saveCallDebug(peer: Api.InputPhoneCall, debug: Api.DataJSON) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Bool>) {
                     let buffer = Buffer()
                     buffer.appendInt32(662363518)
@@ -5553,6 +5554,42 @@ extension Api {
                     serializeInt32(rating, buffer: buffer, boxed: false)
                     serializeString(comment, buffer: buffer, boxed: false)
                     return (FunctionDescription(name: "phone.setCallRating", parameters: [("flags", flags), ("peer", peer), ("rating", rating), ("comment", comment)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.Updates?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.Updates
+                        }
+                        return result
+                    })
+                }
+            
+                static func requestCall(flags: Int32, userId: Api.InputUser, randomId: Int32, gAHash: Buffer, `protocol`: Api.PhoneCallProtocol) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.phone.PhoneCall>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(1124046573)
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    userId.serialize(buffer, true)
+                    serializeInt32(randomId, buffer: buffer, boxed: false)
+                    serializeBytes(gAHash, buffer: buffer, boxed: false)
+                    `protocol`.serialize(buffer, true)
+                    return (FunctionDescription(name: "phone.requestCall", parameters: [("flags", flags), ("userId", userId), ("randomId", randomId), ("gAHash", gAHash), ("`protocol`", `protocol`)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.phone.PhoneCall? in
+                        let reader = BufferReader(buffer)
+                        var result: Api.phone.PhoneCall?
+                        if let signature = reader.readInt32() {
+                            result = Api.parse(reader, signature: signature) as? Api.phone.PhoneCall
+                        }
+                        return result
+                    })
+                }
+            
+                static func discardCall(flags: Int32, peer: Api.InputPhoneCall, duration: Int32, reason: Api.PhoneCallDiscardReason, connectionId: Int64) -> (FunctionDescription, Buffer, DeserializeFunctionResponse<Api.Updates>) {
+                    let buffer = Buffer()
+                    buffer.appendInt32(-1295269440)
+                    serializeInt32(flags, buffer: buffer, boxed: false)
+                    peer.serialize(buffer, true)
+                    serializeInt32(duration, buffer: buffer, boxed: false)
+                    reason.serialize(buffer, true)
+                    serializeInt64(connectionId, buffer: buffer, boxed: false)
+                    return (FunctionDescription(name: "phone.discardCall", parameters: [("flags", flags), ("peer", peer), ("duration", duration), ("reason", reason), ("connectionId", connectionId)]), buffer, DeserializeFunctionResponse { (buffer: Buffer) -> Api.Updates? in
                         let reader = BufferReader(buffer)
                         var result: Api.Updates?
                         if let signature = reader.readInt32() {

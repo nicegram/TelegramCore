@@ -123,14 +123,14 @@ private struct ResolvedChatListResetRange {
     let remote: FetchedChatList
 }
 
-func accountStateReset(postbox: Postbox, network: Network, accountPeerId: PeerId) -> Signal<Void, NoError> {
-    let pinnedChats: Signal<Api.messages.PeerDialogs, NoError> = network.request(Api.functions.messages.getPinnedDialogs())
+/*func accountStateReset(postbox: Postbox, network: Network, accountPeerId: PeerId) -> Signal<Void, NoError> {
+    let pinnedChats: Signal<Api.messages.PeerDialogs, NoError> = network.request(Api.functions.messages.getPinnedDialogs(folderId: 0))
     |> retryRequest
     let state: Signal<Api.updates.State, NoError> = network.request(Api.functions.updates.getState())
     |> retryRequest
     
     return postbox.transaction { transaction -> [ChatListNamespaceEntry] in
-        return transaction.getChatListNamespaceEntries(groupId: nil, namespace: Namespaces.Message.Cloud, summaryTag: MessageTags.unseenPersonalMessage)
+        return transaction.getChatListNamespaceEntries(groupId: .root, namespace: Namespaces.Message.Cloud, summaryTag: MessageTags.unseenPersonalMessage)
     }
     |> mapToSignal { localChatListEntries -> Signal<Void, NoError> in
         let localRanges = localChatListEntryRanges(localChatListEntries, limit: 100)
@@ -240,7 +240,7 @@ func accountStateReset(postbox: Postbox, network: Network, accountPeerId: PeerId
                                 }
                             }
                             if !skipHole {
-                                transaction.addHole(MessageId(peerId: messageId.peerId, namespace: messageId.namespace, id: messageId.id - 1))
+                                //transaction.addHole(MessageId(peerId: messageId.peerId, namespace: messageId.namespace, id: messageId.id - 1))
                             }
                         }
                     }
@@ -273,13 +273,13 @@ func accountStateReset(postbox: Postbox, network: Network, accountPeerId: PeerId
                     for peerId in previousPeerIds {
                         if !allPeersWithMessages.contains(peerId), let namespaces = namespacesWithHoles[peerId.namespace] {
                             for namespace in namespaces {
-                                transaction.addHole(MessageId(peerId: peerId, namespace: namespace, id: Int32.max - 1))
+                                //transaction.addHole(MessageId(peerId: peerId, namespace: namespace, id: Int32.max - 1))
                             }
                         }
                     }
                     
                     if range.head {
-                        transaction.setPinnedItemIds(range.remote.pinnedItemIds ?? [])
+                        transaction.setPinnedItemIds(groupId: nil, itemIds: range.remote.pinnedItemIds ?? [])
                     }
                 }
                 
@@ -292,4 +292,4 @@ func accountStateReset(postbox: Postbox, network: Network, accountPeerId: PeerId
             }
         }
     }
-}
+}*/

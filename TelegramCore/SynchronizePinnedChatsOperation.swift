@@ -16,8 +16,6 @@ private struct PreviousPeerItemId: PostboxCoding {
         switch decoder.decodeInt32ForKey("_t", orElse: 0) {
             case 0:
                 self.id = .peer(PeerId(decoder.decodeInt64ForKey("i", orElse: 0)))
-            case 1:
-                self.id = .group(PeerGroupId(rawValue: decoder.decodeInt32ForKey("i", orElse: 0)))
             default:
                 preconditionFailure()
         }
@@ -28,9 +26,6 @@ private struct PreviousPeerItemId: PostboxCoding {
             case let .peer(peerId):
                 encoder.encodeInt32(0, forKey: "_t")
                 encoder.encodeInt64(peerId.toInt64(), forKey: "i")
-            case let .group(groupId):
-                encoder.encodeInt32(1, forKey: "_t")
-                encoder.encodeInt32(groupId.rawValue, forKey: "i")
         }
     }
 }
@@ -52,11 +47,12 @@ final class SynchronizePinnedChatsOperation: PostboxCoding {
     }
 }
 
-func addSynchronizePinnedChatsOperation(transaction: Transaction) {
-    var previousItemIds = transaction.getPinnedItemIds()
+func addSynchronizePinnedChatsOperation(transaction: Transaction, groupId: PeerGroupId) {
+    let rawId: Int32 = groupId.rawValue
+    var previousItemIds = transaction.getPinnedItemIds(groupId: groupId)
     var updateLocalIndex: Int32?
     
-    transaction.operationLogEnumerateEntries(peerId: PeerId(namespace: 0, id: 0), tag: OperationLogTags.SynchronizePinnedChats, { entry in
+    transaction.operationLogEnumerateEntries(peerId: PeerId(namespace: 0, id: rawId), tag: OperationLogTags.SynchronizePinnedChats, { entry in
         updateLocalIndex = entry.tagLocalIndex
         if let contents = entry.contents as? SynchronizePinnedChatsOperation {
             previousItemIds = contents.previousItemIds
@@ -65,7 +61,7 @@ func addSynchronizePinnedChatsOperation(transaction: Transaction) {
     })
     let operationContents = SynchronizePinnedChatsOperation(previousItemIds: previousItemIds)
     if let updateLocalIndex = updateLocalIndex {
-        let _ = transaction.operationLogRemoveEntry(peerId: PeerId(namespace: 0, id: 0), tag: OperationLogTags.SynchronizePinnedChats, tagLocalIndex: updateLocalIndex)
+        let _ = transaction.operationLogRemoveEntry(peerId: PeerId(namespace: 0, id: rawId), tag: OperationLogTags.SynchronizePinnedChats, tagLocalIndex: updateLocalIndex)
     }
-    transaction.operationLogAddEntry(peerId: PeerId(namespace: 0, id: 0), tag: OperationLogTags.SynchronizePinnedChats, tagLocalIndex: .automatic, tagMergedIndex: .automatic, contents: operationContents)
+    transaction.operationLogAddEntry(peerId: PeerId(namespace: 0, id: rawId), tag: OperationLogTags.SynchronizePinnedChats, tagLocalIndex: .automatic, tagMergedIndex: .automatic, contents: operationContents)
 }
