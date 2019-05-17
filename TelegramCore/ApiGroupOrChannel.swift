@@ -89,14 +89,12 @@ func parseTelegramGroupOrChannel(chat: Api.Chat) -> Peer? {
                 channelFlags.insert(.isScam)
             }
             
-            let restrictionInfo: PeerAccessRestrictionInfo? = nil
-            /* #FMOD
+            var restrictionInfo: PeerAccessRestrictionInfo? = nil
             if let restrictionReason = restrictionReason {
                 restrictionInfo = PeerAccessRestrictionInfo(reason: restrictionReason)
             } else {
                 restrictionInfo = nil
             }
-            */
             
             return TelegramChannel(id: PeerId(namespace: Namespaces.Peer.CloudChannel, id: id), accessHash: accessHash, title: title, username: username, photo: imageRepresentationsForApiChatPhoto(photo), creationDate: date, version: version, participationStatus: participationStatus, info: info, flags: channelFlags, restrictionInfo: restrictionInfo, adminRights: adminRights.flatMap(TelegramChatAdminRights.init), bannedRights: bannedRights.flatMap(TelegramChatBannedRights.init), defaultBannedRights: defaultBannedRights.flatMap(TelegramChatBannedRights.init))
         case let .channelForbidden(flags, id, accessHash, title, untilDate):
