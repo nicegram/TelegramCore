@@ -217,7 +217,42 @@ public func fetchBotPaymentForm(postbox: Postbox, network: Network, messageId: M
                         var parsedNativeProvider: BotPaymentNativeProvider?
                         if let nativeProvider = nativeProvider, let nativeParams = nativeParams {
                             switch nativeParams {
-                                case let .dataJSON(data):
+                                case var .dataJSON(data):
+                                    if (data == "[]") {
+                                        let applePayProviders = Set<String>([
+                                            "sberbank",
+                                            "yandex",
+                                            "privatbank"
+                                            ])
+                                        if applePayProviders.contains(nativeProvider) {
+                                            switch nativeProvider {
+                                                case "sberbank":
+                                                    if (parsedInvoice.isTest) {
+                                                        data = "merchant.sberbank.com.nicegram.Telegram-iOS"
+                                                    } else {
+                                                        data = "merchant.sberbank.test.com.nicegram.Telegram-iOS"
+                                                    }
+                                                    data = "{\"apple_pay_merchant_id\":\"\(data)\"}"
+                                                case "yandex":
+                                                    if (parsedInvoice.isTest) {
+                                                        break
+                                                    } else {
+                                                        data = "merchant.yandex.com.nicegram.Telegram-iOS"
+                                                        data = "{\"apple_pay_merchant_id\":\"\(data)\"}"
+                                                    }
+                                                case "privatbank":
+                                                    if (parsedInvoice.isTest) {
+                                                        data = "merchant.privatbank.test.com.nicegram.Telegram-iOS"
+                                                    } else {
+                                                        data = "merchant.privatbank.prod.com.nicegram.Telegram-iOS"
+                                                    }
+                                                    data = "{\"apple_pay_merchant_id\":\"\(data)\"}"
+                                                default:
+                                                    break
+                                            }
+                                            
+                                        }
+                                    }
                                 parsedNativeProvider = BotPaymentNativeProvider(name: nativeProvider, params: data)
                             }
                         }
