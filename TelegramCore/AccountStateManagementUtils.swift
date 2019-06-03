@@ -93,6 +93,13 @@ private func peerIdsRequiringLocalChatStateFromUpdates(_ updates: [Api.Update]) 
                 peerIds.insert(PeerId(namespace: Namespaces.Peer.CloudChannel, id: channelId))
             case let .updateReadHistoryInbox(_, _, peer, _, _, _, _):
                 peerIds.insert(peer.peerId)
+            case let .updateDraftMessage(peer, draft):
+                switch draft {
+                    case .draftMessage:
+                        peerIds.insert(peer.peerId)
+                    case .draftMessageEmpty:
+                        break
+                }
             default:
                 break
         }
@@ -963,6 +970,8 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                 updatedState.resetIncomingReadState(groupId: PeerGroupId(rawValue: folderId ?? 0), peerId: PeerId(namespace: Namespaces.Peer.CloudChannel, id: channelId), namespace: Namespaces.Message.Cloud, maxIncomingReadId: maxId, count: stillUnreadCount, pts: pts)
             case let .updateReadChannelOutbox(channelId, maxId):
                 updatedState.readOutbox(MessageId(peerId: PeerId(namespace: Namespaces.Peer.CloudChannel, id: channelId), namespace: Namespaces.Message.Cloud, id: maxId), timestamp: nil)
+            case let .updateChannel(channelId):
+                updatedState.addExternallyUpdatedPeerId(PeerId(namespace: Namespaces.Peer.CloudChannel, id: channelId))
             case let .updateReadHistoryInbox(_, folderId, peer, maxId, stillUnreadCount, pts, _):
                 updatedState.resetIncomingReadState(groupId: PeerGroupId(rawValue: folderId ?? 0), peerId: peer.peerId, namespace: Namespaces.Message.Cloud, maxIncomingReadId: maxId, count: stillUnreadCount, pts: pts)
             case let .updateReadHistoryOutbox(peer, maxId, _, _):
@@ -1164,7 +1173,7 @@ private func finalStateWithUpdatesAndServerTime(postbox: Postbox, network: Netwo
                     }
                     let hasPhone: Bool?
                     switch foreignLink {
-                        case .contactLinkContact, .contactLinkHasPhone:
+                        case .contactLinkContact:
                             hasPhone = true
                         case .contactLinkNone:
                             hasPhone = false
@@ -1360,7 +1369,7 @@ private func resolveAssociatedMessages(network: Network, state: AccountMutableSt
                         switch result {
                             case let .messages(messages, chats, users):
                                 return (messages, chats, users)
-                            case let .messagesSlice(_, _, messages, chats, users):
+                            case let .messagesSlice(_, _, _, messages, chats, users):
                                 return (messages, chats, users)
                             case let .channelMessages(_, _, _, messages, chats, users):
                                 return (messages, chats, users)
@@ -1457,11 +1466,15 @@ private func resolveMissingPeerChatInfos(network: Network, state: AccountMutable
                                     if chat.peerId == peerId {
                                         if let groupOrChannel = parseTelegramGroupOrChannel(chat: chat) {
                                             if let group = groupOrChannel as? TelegramGroup {
-                                                switch group.membership {
-                                                    case .Member:
-                                                        break
-                                                    default:
-                                                        isExcludedFromChatList = true
+                                                if group.flags.contains(.deactivated) {
+                                                    isExcludedFromChatList = true
+                                                } else {
+                                                    switch group.membership {
+                                                        case .Member:
+                                                            break
+                                                        default:
+                                                            isExcludedFromChatList = true
+                                                    }
                                                 }
                                             } else if let channel = groupOrChannel as? TelegramChannel {
                                                 switch channel.participationStatus {
@@ -2053,12 +2066,14 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
     var delayNotificatonsUntil: Int32?
     var peerActivityTimestamps: [PeerId: Int32] = [:]
     
+    var holesFromPreviousStateMeessageIds: [MessageId] = []
+    
     for (peerId, namespaces) in finalState.state.namespacesWithHolesFromPreviousState {
         for namespace in namespaces {
             if let id = transaction.getTopPeerMessageId(peerId: peerId, namespace: namespace) {
-                transaction.addHole(peerId: peerId, namespace: namespace, space: .everywhere, range: (id.id + 1) ... Int32.max)
+                holesFromPreviousStateMeessageIds.append(MessageId(peerId: id.peerId, namespace: id.namespace, id: id.id + 1))
             } else {
-                transaction.addHole(peerId: peerId, namespace: namespace, space: .everywhere, range: 1 ... Int32.max)
+                holesFromPreviousStateMeessageIds.append(MessageId(peerId: peerId, namespace: namespace, id: 1))
             }
         }
     }
@@ -2093,6 +2108,13 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
     
     var invalidateGroupStats = Set<PeerGroupId>()
     
+    struct PeerIdAndMessageNamespace: Hashable {
+        let peerId: PeerId
+        let namespace: MessageId.Namespace
+    }
+    
+    var topUpperHistoryBlockMessages: [PeerIdAndMessageNamespace: MessageId.Id] = [:]
+    
     for operation in optimizedOperations(finalState.state.operations) {
         switch operation {
             case let .AddMessages(messages, location):
@@ -2110,6 +2132,16 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                         }
                         
                         if case let .Id(id) = message.id {
+                            let peerIdAndMessageNamespace = PeerIdAndMessageNamespace(peerId: id.peerId, namespace: id.namespace)
+                            
+                            if let currentId = topUpperHistoryBlockMessages[peerIdAndMessageNamespace] {
+                                if currentId < id.id {
+                                    topUpperHistoryBlockMessages[peerIdAndMessageNamespace] = id.id
+                                }
+                            } else {
+                                topUpperHistoryBlockMessages[peerIdAndMessageNamespace] = id.id
+                            }
+                            
                             for media in message.media {
                                 if let action = media as? TelegramMediaAction {
                                     if message.id.peerId.namespace == Namespaces.Peer.CloudGroup, case let .groupMigratedToChannel(channelId) = action.action {
@@ -2183,8 +2215,10 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                 var currentPinningIndex: UInt16?
                 var currentMinTimestamp: Int32?
                 switch currentInclusion {
-                    case let .ifHasMessagesOrOneOf(_, pinningIndex, minTimestamp):
-                        currentPinningIndex = pinningIndex
+                    case let .ifHasMessagesOrOneOf(currentGroupId, pinningIndex, minTimestamp):
+                        if currentGroupId == groupId {
+                            currentPinningIndex = pinningIndex
+                        }
                         currentMinTimestamp = minTimestamp
                     default:
                         break
@@ -2200,7 +2234,7 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                     if previousMessage.localTags.contains(.OutgoingLiveLocation) {
                         updatedLocalTags.insert(.OutgoingLiveLocation)
                     }
-                    if message.flags.contains(.Incoming) {
+                    if previousMessage.flags.contains(.Incoming) {
                         updatedFlags.insert(.Incoming)
                     } else {
                         updatedFlags.remove(.Incoming)
@@ -2507,6 +2541,18 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                 }
             case let .UpdateIsContact(peerId, value):
                 isContactUpdates.append((peerId, value))
+        }
+    }
+    
+    for messageId in holesFromPreviousStateMeessageIds {
+        let upperId: MessageId.Id
+        if let value = topUpperHistoryBlockMessages[PeerIdAndMessageNamespace(peerId: messageId.peerId, namespace: messageId.namespace)], value < Int32.max {
+            upperId = value - 1
+        } else {
+            upperId = Int32.max
+        }
+        if upperId > messageId.id {
+            transaction.addHole(peerId: messageId.peerId, namespace: messageId.namespace, space: .everywhere, range: messageId.id ... upperId)
         }
     }
     

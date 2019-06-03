@@ -49,6 +49,7 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
     case botDomainAccessGranted(domain: String)
     case botSentSecureValues(types: [SentSecureValueType])
     case peerJoined
+    case phoneNumberRequest
     
     public init(decoder: PostboxDecoder) {
         let rawValue: Int32 = decoder.decodeInt32ForKey("_rawValue", orElse: 0)
@@ -97,6 +98,8 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
                 })
             case 19:
                 self = .peerJoined
+            case 20:
+                self = .phoneNumberRequest
             default:
                 self = .unknown
         }
@@ -179,6 +182,8 @@ public enum TelegramMediaActionType: PostboxCoding, Equatable {
                 encoder.encodeInt32Array(types.map { $0.rawValue }, forKey: "ty")
             case .peerJoined:
                 encoder.encodeInt32(19, forKey: "_rawValue")
+            case .phoneNumberRequest:
+                encoder.encodeInt32(20, forKey: "_rawValue")
         }
     }
     

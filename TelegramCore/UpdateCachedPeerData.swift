@@ -142,14 +142,13 @@ func fetchAndUpdateCachedPeerData(accountPeerId: PeerId, peerId: PeerId, network
                                         switch userFull.link {
                                             case let .link(_, foreignLink, _):
                                                 switch foreignLink {
-                                                    case .contactLinkContact, .contactLinkHasPhone:
-                                                    hasPhone = true
+                                                    case .contactLinkContact:
+                                                        hasPhone = true
                                                     case .contactLinkNone:
                                                         hasPhone = false
                                                     case .contactLinkUnknown:
                                                         hasPhone = false
                                                 }
-                                                break
                                         }
                                         return previous.withUpdatedAbout(userFull.about).withUpdatedBotInfo(botInfo).withUpdatedCommonGroupCount(userFull.commonChatsCount).withUpdatedIsBlocked(isBlocked).withUpdatedCallsAvailable(callsAvailable).withUpdatedCallsPrivate(callsPrivate).withUpdatedCanPinMessages(canPinMessages).withUpdatedHasAccountPeerPhone(hasPhone).withUpdatedPinnedMessageId(pinnedMessageId)
                                 }
@@ -254,7 +253,7 @@ func fetchAndUpdateCachedPeerData(accountPeerId: PeerId, peerId: PeerId, network
                                     }
                                     
                                     switch fullChat {
-                                        case let .channelFull(flags, _, about, participantsCount, adminsCount, kickedCount, bannedCount, _, _, _, _, _, _, apiExportedInvite, apiBotInfos, migratedFromChatId, migratedFromMaxId, pinnedMsgId, stickerSet, minAvailableMsgId, folderId, pts):
+                                        case let .channelFull(flags, _, about, participantsCount, adminsCount, kickedCount, bannedCount, _, _, _, _, _, _, apiExportedInvite, apiBotInfos, migratedFromChatId, migratedFromMaxId, pinnedMsgId, stickerSet, minAvailableMsgId, folderId, linkedChatId, pts):
                                             var channelFlags = CachedChannelFlags()
                                             if (flags & (1 << 3)) != 0 {
                                                 channelFlags.insert(.canDisplayParticipants)
@@ -271,6 +270,15 @@ func fetchAndUpdateCachedPeerData(accountPeerId: PeerId, peerId: PeerId, network
                                             if (flags & (1 << 7)) != 0 {
                                                 channelFlags.insert(.canSetStickerSet)
                                             }
+                                            
+                                            let linkedDiscussionPeerId: PeerId?
+                                            
+                                            if let linkedChatId = linkedChatId, linkedChatId != 0 {
+                                                linkedDiscussionPeerId = PeerId(namespace: Namespaces.Peer.CloudChannel, id: linkedChatId)
+                                            } else {
+                                                linkedDiscussionPeerId = nil
+                                            }
+                                            
                                             var botInfos: [CachedPeerBotInfo] = []
                                             for botInfo in apiBotInfos {
                                                 switch botInfo {
@@ -357,6 +365,7 @@ func fetchAndUpdateCachedPeerData(accountPeerId: PeerId, peerId: PeerId, network
                                                     .withUpdatedStickerPack(stickerPack)
                                                     .withUpdatedMinAvailableMessageId(minAvailableMessageId)
                                                     .withUpdatedMigrationReference(migrationReference)
+                                                    .withUpdatedLinkedDiscussionPeerId(linkedDiscussionPeerId)
                                             })
                                         
                                             if let minAvailableMessageId = minAvailableMessageId, minAvailableMessageIdUpdated {

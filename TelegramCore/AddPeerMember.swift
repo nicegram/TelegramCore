@@ -12,6 +12,7 @@ import Foundation
 public enum AddGroupMemberError {
     case generic
     case groupFull
+    case privacy
 }
 
 public func addGroupMember(account: Account, peerId: PeerId, memberId: PeerId) -> Signal<Void, AddGroupMemberError> {
@@ -23,10 +24,11 @@ public func addGroupMember(account: Account, peerId: PeerId, memberId: PeerId) -
                     switch error.errorDescription {
                         case "USERS_TOO_MUCH":
                             return .groupFull
+                        case "USER_PRIVACY_RESTRICTED":
+                            return .privacy
                         default:
                             return .generic
                     }
-                    return .generic
                 }
                 |> mapToSignal { result -> Signal<Void, AddGroupMemberError> in
                     account.stateManager.addUpdates(result)
@@ -67,6 +69,7 @@ public enum AddChannelMemberError {
     case generic
     case restricted
     case limitExceeded
+    case bot(PeerId)
 }
 
 public func addChannelMember(account: Account, peerId: PeerId, memberId: PeerId) -> Signal<(ChannelParticipant?, RenderedChannelParticipant), AddChannelMemberError> {
@@ -79,7 +82,7 @@ public func addChannelMember(account: Account, peerId: PeerId, memberId: PeerId)
             if let peer = transaction.getPeer(peerId), let memberPeer = transaction.getPeer(memberId), let inputUser = apiInputUser(memberPeer) {
                 if let channel = peer as? TelegramChannel, let inputChannel = apiInputChannel(channel) {
                     let updatedParticipant: ChannelParticipant
-                    if let currentParticipant = currentParticipant, case let .member(_, invitedAt, adminInfo, banInfo) = currentParticipant {
+                    if let currentParticipant = currentParticipant, case let .member(_, invitedAt, adminInfo, _) = currentParticipant {
                         updatedParticipant = ChannelParticipant.member(id: memberId, invitedAt: invitedAt, adminInfo: adminInfo, banInfo: nil)
                     } else {
                         updatedParticipant = ChannelParticipant.member(id: memberId, invitedAt: Int32(Date().timeIntervalSince1970), adminInfo: nil, banInfo: nil)
@@ -90,6 +93,10 @@ public func addChannelMember(account: Account, peerId: PeerId, memberId: PeerId)
                         switch error.errorDescription {
                             case "USERS_TOO_MUCH":
                                 return .fail(.limitExceeded)
+                            case "USER_PRIVACY_RESTRICTED":
+                                return .fail(.restricted)
+                            case "USER_BOT":
+                                return .fail(.bot(memberId))
                             default:
                                 return .fail(.generic)
                         }
@@ -195,8 +202,9 @@ public func addChannelMembers(account: Account, peerId: PeerId, memberIds: [Peer
             return .single(Void())
         }
         
-    } |> introduceError(AddChannelMemberError.self)
+    }
+    |> introduceError(AddChannelMemberError.self)
     
-    return signal |> switchToLatest
-    
+    return signal
+    |> switchToLatest
 }

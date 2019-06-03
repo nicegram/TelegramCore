@@ -88,7 +88,7 @@ private func fetchWebpage(account: Account, messageId: MessageId) -> Signal<Void
                         messages = apiMessages
                         chats = apiChats
                         users = apiUsers
-                    case let .messagesSlice(_, _, messages: apiMessages, chats: apiChats, users: apiUsers):
+                    case let .messagesSlice(_, _, _, messages: apiMessages, chats: apiChats, users: apiUsers):
                         messages = apiMessages
                         chats = apiChats
                         users = apiUsers
@@ -275,16 +275,31 @@ public final class AccountViewTracker {
         return self.chatHistoryPreloadManager.orderedMedia
     }
     
+    private let externallyUpdatedPeerIdDisposable = MetaDisposable()
+    
     init(account: Account) {
         self.account = account
         
         self.historyViewStateValidationContexts = HistoryViewStateValidationContexts(queue: self.queue, postbox: account.postbox, network: account.network, accountPeerId: account.peerId)
         
         self.chatHistoryPreloadManager = ChatHistoryPreloadManager(postbox: account.postbox, network: account.network, accountPeerId: account.peerId, networkState: account.networkState)
+        
+        self.externallyUpdatedPeerIdDisposable.set((account.stateManager.externallyUpdatedPeerIds
+        |> deliverOn(self.queue)).start(next: { [weak self] peerIds in
+            guard let strongSelf = self else {
+                return
+            }
+            for (peerId, _) in strongSelf.cachedDataContexts {
+                if peerIds.contains(peerId) {
+                    strongSelf.forceUpdateCachedPeerData(peerId: peerId)
+                }
+            }
+        }))
     }
     
     deinit {
         self.updatedViewCountDisposables.dispose()
+        self.externallyUpdatedPeerIdDisposable.dispose()
     }
     
     private func updatePendingWebpages(viewId: Int32, messageIds: Set<MessageId>, localWebpages: [MessageId: (MediaId, String)]) {
@@ -610,7 +625,7 @@ public final class AccountViewTracker {
                                 switch result {
                                     case let .messages(messages, chats, users):
                                         return (messages, chats, users)
-                                    case let .messagesSlice(_, _, messages, chats, users):
+                                    case let .messagesSlice(_, _, _, messages, chats, users):
                                         return (messages, chats, users)
                                     case let .channelMessages(_, _, _, messages, chats, users):
                                         return (messages, chats, users)
@@ -739,10 +754,9 @@ public final class AccountViewTracker {
         }
     }
     
-    func forceUpdateCachedPeerData(peerId: PeerId) {
+    public func forceUpdateCachedPeerData(peerId: PeerId) {
         self.queue.async {
             let context: PeerCachedDataContext
-            var dataUpdated = false
             if let existingContext = self.cachedDataContexts[peerId] {
                 context = existingContext
             } else {
@@ -928,7 +942,14 @@ public final class AccountViewTracker {
         }
     }
     
-    func wrappedPeerViewSignal(peerId: PeerId, signal: Signal<PeerView, NoError>) -> Signal<PeerView, NoError> {
+    func wrappedPeerViewSignal(peerId: PeerId, signal: Signal<PeerView, NoError>, updateData: Bool) -> Signal<PeerView, NoError> {
+        if updateData {
+            self.queue.async {
+                if let existingContext = self.cachedDataContexts[peerId] {
+                    existingContext.timestamp = nil
+                }
+            }
+        }
         return withState(signal, { [weak self] () -> Int32 in
             if let strongSelf = self {
                 return OSAtomicIncrement32(&strongSelf.nextViewId)
@@ -946,9 +967,9 @@ public final class AccountViewTracker {
         })
     }
     
-    public func peerView(_ peerId: PeerId) -> Signal<PeerView, NoError> {
+    public func peerView(_ peerId: PeerId, updateData: Bool = false) -> Signal<PeerView, NoError> {
         if let account = self.account {
-            return wrappedPeerViewSignal(peerId: peerId, signal: account.postbox.peerView(id: peerId))
+            return wrappedPeerViewSignal(peerId: peerId, signal: account.postbox.peerView(id: peerId), updateData: updateData)
         } else {
             return .never()
         }

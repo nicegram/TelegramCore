@@ -19,7 +19,10 @@ private let redactChildrenOfType: [String: Set<String>] = [
     "Updates.updateShortChatMessage": Set(["message"]),
     "BotInlineMessage.botInlineMessageText": Set(["message"]),
     "DraftMessage.draftMessage": Set(["message"]),
-    "InputSingleMedia.inputSingleMedia": Set(["message"])
+    "InputSingleMedia.inputSingleMedia": Set(["message"]),
+    "InputContact.inputPhoneContact": Set(["phone"]),
+    "User.user": Set(["phone"]),
+    "Update.updateUserPhone": Set(["phone"])
 ]
 
 private let redactFunctionParameters: [String: Set<String>] = [
@@ -206,7 +209,7 @@ public class BoxedMessage: NSObject {
 
 public class Serialization: NSObject, MTSerialization {
     public func currentLayer() -> UInt {
-        return 99
+        return 100
     }
     
     public func parseMessage(_ data: Data!) -> Any! {

@@ -206,14 +206,19 @@ public func resendMessages(account: Account, messageIds: [MessageId]) -> Signal<
                 if let message = transaction.getMessage(id), !message.flags.contains(.Incoming) {
                     removeMessageIds.append(id)
                     
+                    var filteredAttributes: [MessageAttribute] = []
                     var replyToMessageId: MessageId?
-                    for attribute in message.attributes {
+                    inner: for attribute in message.attributes {
                         if let attribute = attribute as? ReplyMessageAttribute {
                             replyToMessageId = attribute.messageId
+                        } else if attribute is OutgoingMessageInfoAttribute {
+                            continue inner
+                        } else {
+                            filteredAttributes.append(attribute)
                         }
                     }
                     
-                    messages.append(.message(text: message.text, attributes: message.attributes, mediaReference: message.media.first.flatMap(AnyMediaReference.standalone), replyToMessageId: replyToMessageId, localGroupingKey: message.groupingKey))
+                    messages.append(.message(text: message.text, attributes: filteredAttributes, mediaReference: message.media.first.flatMap(AnyMediaReference.standalone), replyToMessageId: replyToMessageId, localGroupingKey: message.groupingKey))
                 }
             }
             let _ = enqueueMessages(transaction: transaction, account: account, peerId: peerId, messages: messages.map { (false, $0) })
@@ -360,7 +365,7 @@ func enqueueMessages(transaction: Transaction, account: Account, peerId: PeerId,
                     }
                 
                     let authorId: PeerId?
-                    if let peer = peer as? TelegramChannel, case let .broadcast(info) = peer.info, !info.flags.contains(.messagesShouldHaveSignatures) {
+                    if let peer = peer as? TelegramChannel, case let .broadcast(info) = peer.info {
                         authorId = peer.id
                     }  else {
                         authorId = account.peerId
@@ -404,6 +409,43 @@ func enqueueMessages(transaction: Transaction, account: Account, peerId: PeerId,
                             }
                             
                             attributes.append(contentsOf: filterMessageAttributesForForwardedMessage(sourceMessage.attributes))
+                            
+                            var sourceReplyMarkup: ReplyMarkupMessageAttribute? = nil
+                            var sourceSentViaBot = false
+                            for attribute in attributes {
+                                if let attribute = attribute as? ReplyMarkupMessageAttribute {
+                                    sourceReplyMarkup = attribute
+                                } else if let _ = attribute as? InlineBotMessageAttribute {
+                                    sourceSentViaBot = true
+                                }
+                            }
+                            
+                            if let sourceReplyMarkup = sourceReplyMarkup {
+                                var rows: [ReplyMarkupRow] = []
+                                loop: for row in sourceReplyMarkup.rows {
+                                    var buttons: [ReplyMarkupButton] = []
+                                    for button in row.buttons {
+                                        if case .url = button.action {
+                                            buttons.append(button)
+                                        } else if case .urlAuth = button.action {
+                                            buttons.append(button)
+                                        } else if case let .switchInline(samePeer, query) = button.action, sourceSentViaBot {
+                                            let samePeer = samePeer && peerId == sourceMessage.id.peerId
+                                            let updatedButton = ReplyMarkupButton(title: button.titleWhenForwarded ?? button.title, titleWhenForwarded: button.titleWhenForwarded,  action: .switchInline(samePeer: samePeer, query: query))
+                                            buttons.append(updatedButton)
+                                        } else {
+                                            rows.removeAll()
+                                            break loop
+                                        }
+                                    }
+                                    rows.append(ReplyMarkupRow(buttons: buttons))
+                                }
+                                
+                                if !rows.isEmpty {
+                                    attributes.append(ReplyMarkupMessageAttribute(rows: rows, flags: sourceReplyMarkup.flags))
+                                }
+                            }
+                            
                             if let sourceForwardInfo = sourceMessage.forwardInfo {
                                 forwardInfo = StoreMessageForwardInfo(authorId: sourceForwardInfo.author?.id, sourceId: sourceForwardInfo.source?.id, sourceMessageId: sourceForwardInfo.sourceMessageId, date: sourceForwardInfo.date, authorSignature: sourceForwardInfo.authorSignature)
                             } else {
@@ -444,7 +486,7 @@ func enqueueMessages(transaction: Transaction, account: Account, peerId: PeerId,
                         }
                         
                         let authorId: PeerId?
-                        if let peer = peer as? TelegramChannel, case let .broadcast(info) = peer.info, !info.flags.contains(.messagesShouldHaveSignatures) {
+                        if let peer = peer as? TelegramChannel, case .broadcast = peer.info {
                             authorId = peer.id
                         }  else {
                             authorId = account.peerId
