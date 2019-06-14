@@ -42,25 +42,32 @@ public func toggleItemPinned(postbox: Postbox, groupId: PeerGroupId, itemId: Pin
             limitCount = Int(limitsConfiguration.maxArchivedPinnedChatCount)
         }
         
-        if sameKind.count + additionalCount > limitCount {
-            return .limitExceeded(limitCount)
+        if let index = itemIds.index(of: itemId) {
+            itemIds.remove(at: index)
         } else {
-            if let index = itemIds.index(of: itemId) {
-                itemIds.remove(at: index)
-            } else {
-                itemIds.insert(itemId, at: 0)
-            }
-            addSynchronizePinnedChatsOperation(transaction: transaction, groupId: groupId)
-            transaction.setPinnedItemIds(groupId: groupId, itemIds: itemIds)
-            return .done
+            itemIds.insert(itemId, at: 0)
         }
+        if !(sameKind.count + additionalCount > limitCount) {
+            addSynchronizePinnedChatsOperation(transaction: transaction, groupId: groupId)
+        }
+        transaction.setPinnedItemIds(groupId: groupId, itemIds: itemIds)
+        return .done
     }
 }
 
 public func reorderPinnedItemIds(transaction: Transaction, groupId: PeerGroupId, itemIds: [PinnedItemId]) -> Bool {
     if transaction.getPinnedItemIds(groupId: groupId) != itemIds {
         transaction.setPinnedItemIds(groupId: groupId, itemIds: itemIds)
-        addSynchronizePinnedChatsOperation(transaction: transaction, groupId: groupId)
+        let limitsConfiguration = transaction.getPreferencesEntry(key: PreferencesKeys.limitsConfiguration) as? LimitsConfiguration ?? LimitsConfiguration.defaultValue
+        let limitCount: Int?
+        if case .root = groupId {
+            limitCount = Int(limitsConfiguration.maxPinnedChatCount)
+        } else {
+            limitCount = nil
+        }
+        if limitCount != nil && itemIds.count <= limitCount! {
+            addSynchronizePinnedChatsOperation(transaction: transaction, groupId: groupId)
+        }
         return true
     } else {
         return false
