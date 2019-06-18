@@ -2219,10 +2219,17 @@ func replayFinalState(accountManager: AccountManager, postbox: Postbox, accountP
                         if currentGroupId == groupId {
                             currentPinningIndex = pinningIndex
                         }
+                        Logger.shared.log("NiceFolders", "Update swap group \(currentGroupId) -> \(groupId)")
                         currentMinTimestamp = minTimestamp
                     default:
                         break
                 }
+                let folder = getPeerFolder(accountManager: accountManager, peerId: peerId)
+                if folder != nil {
+                    Logger.shared.log("NiceFolders", "Ignoring peer folder update")
+                    break
+                }
+                
                 transaction.updatePeerChatListInclusion(peerId, inclusion: .ifHasMessagesOrOneOf(groupId: groupId, pinningIndex: currentPinningIndex, minTimestamp: currentMinTimestamp))
                 if changedGroup {
                     invalidateGroupStats.insert(Namespaces.PeerGroup.archive)

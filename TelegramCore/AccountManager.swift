@@ -94,6 +94,7 @@ private var declaredEncodables: Void = {
     declareEncodable(LocalizationSettings.self, f: { LocalizationSettings(decoder: $0) })
     declareEncodable(LocalizationListState.self, f: { LocalizationListState(decoder: $0) })
     declareEncodable(ProxySettings.self, f: { ProxySettings(decoder: $0) })
+    declareEncodable(NiceFolders.self, f: { NiceFolders(decoder: $0) })
     declareEncodable(NetworkSettings.self, f: { NetworkSettings(decoder: $0) })
     declareEncodable(RemoteStorageConfiguration.self, f: { RemoteStorageConfiguration(decoder: $0) })
     declareEncodable(LimitsConfiguration.self, f: { LimitsConfiguration(decoder: $0) })
